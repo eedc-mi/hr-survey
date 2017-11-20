@@ -36,5 +36,6 @@ vignettes/*.pdf
 *.csv
 *.rds
 
-# plots
+# plots and presentations
 *.pdf
+*.pptx

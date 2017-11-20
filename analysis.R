@@ -1,6 +1,8 @@
 library(tidyverse)
 library(here)
 library(scales)
+library(officer)
+library(rvg)
 
 setwd(here())
 
@@ -10,7 +12,8 @@ dataPath <- file.path(
   "Corporate",
   "Human Resources",
   "Employee Engagement Survey Results",
-  "Nov 2017"
+  "Nov 2017",
+  "data"
 )
 
 dataNew <- read_csv(file.path(dataPath, "nov2017.csv"))
@@ -83,6 +86,11 @@ tib <- bind_rows(
   cleanData(dataOld, qsJan, "Jan. 2017") 
 )
 
+tib <- bind_rows(
+  tib,
+  tib %>% mutate(division = "All Divisions")
+)
+
 toPlot <- tib %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
@@ -94,19 +102,80 @@ toPlot <- tib %>%
   spread(key = response, value = freq) %>%
   mutate(engagement = `Strongly Agree` + `Agree`) %>% #back-quoting is bad
   select(division, driver_all, date, engagement) %>%
-  complete(division, date, driver_all)
+  complete(division, date, driver_all) %>%
+  mutate(engagement = engagement * 100)
 
-ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, fill = date)) + 
-  geom_bar(stat = "identity", position = "dodge") +
-  coord_flip()
+toPlot$driver_all <- factor(
+  toPlot$driver_all,
+  levels = rev(c(
+    "Affinity",
+    "Communication",
+    "Compensation",
+    "Development",
+    "Empowerment",
+    "Leadership",
+    "Performance",
+    "Recognition",
+    "Relations",
+    "Teamwork",
+    "Change Leadership",
+    "Direct Manager Support"
+  )),
+  ordered = TRUE
+)
+
+colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
+
+test <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "Corporate") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
 
 ggplot(toPlot %>% filter(date == "Nov. 2017"), 
        aes(x = division, y = driver_all, fill = engagement)) +
   geom_tile(color = "black") +
-  geom_text(aes(label = round(engagement, 2) * 100)) +
+  geom_text(aes(label = round(engagement, 0))) +
   scale_fill_gradient2(
-    limits = c(0, 1), 
+    limits = c(0, 100), 
     low = "#d7191c", 
     high = "#1a9641", 
     mid = "#ffffbf", 
-    midpoint = mean(toPlot$engagement, na.rm = TRUE))
+    midpoint = mean(toPlot$engagement, na.rm = TRUE),
+    guide = "legend") +
+  labs(
+    fill = "Engagement\nScore",
+    title = "Engagement Score by Key Driver and Division",
+    subtitle = "Percentage of \'Agree\' responses or higher") +
+  scale_x_discrete(position = "top") +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_blank())
+
+ppt <- read_pptx()
+
+ppt %>%
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_add_text(str = "Results by Division", type = "title") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(test), type = "body")
+
+print(ppt, target = "test.pptx")
