@@ -91,6 +91,19 @@ tib <- bind_rows(
   tib %>% mutate(division = "All Divisions")
 )
 
+toTable <- tib %>%
+  group_by(division, date) %>%
+  count(response) %>%
+  complete(response, fill = list(n = 0)) %>%
+  filter(! is.na(response)) %>%
+  mutate(freq = n / sum(n)) %>%
+  ungroup() %>%
+  select(-n) %>%
+  spread(key = response, value = freq) %>%
+  mutate(engagement = `Strongly Agree` + `Agree`) %>% #back-quoting is bad
+  select(division, date, engagement) %>%
+  mutate(engagement = engagement * 100)
+
 toPlot <- tib %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
