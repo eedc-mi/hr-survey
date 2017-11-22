@@ -2,6 +2,8 @@ library(tidyverse)
 library(here)
 library(scales)
 library(officer)
+library(ReporteRs)
+library(flextable)
 library(rvg)
 
 setwd(here())
@@ -20,6 +22,7 @@ dataNew <- read_csv(file.path(dataPath, "nov2017.csv"))
 dataOld <- read_csv(file.path(dataPath, "jan2017.csv"))
 qsNov <- read_csv(file.path(dataPath, "questions2017.csv"))
 qsJan <- read_csv(file.path(dataPath, "questionsJan2017.csv"))
+empCountNov <- read_csv(file.path(dataPath, "empCountNov212017.csv"))
 
 cleanData <- function(tib, qs, date) {
   tib <- tib %>% 
@@ -104,6 +107,30 @@ toTable <- tib %>%
   select(division, date, engagement) %>%
   mutate(engagement = engagement * 100)
 
+pTable <- dataNew %>%
+  group_by(`Please identify the division you work in at EEDC.`) %>%
+  summarize(respondents = n()) %>%
+  rbind(c("All Divisions", sum(.$respondents)))
+
+empCountNov <- empCountNov %>%
+  rbind(c("All Divisions", sum(.$count)))
+
+pTable <- rename(pTable, division = `Please identify the division you work in at EEDC.`)
+
+pTable <- pTable %>% mutate(division = case_when(
+  grepl("Corporate", division) ~ "Corporate",
+  grepl("SCC", division) ~ "Shaw Conference Centre",
+  TRUE ~ division
+)
+)
+
+participateTable <- left_join(pTable, empCountNov)
+
+participateTable <- participateTable %>%
+  mutate(participation = respondents/count*100) %>%
+  select(division, participation)
+  
+
 toPlot <- tib %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
@@ -139,7 +166,29 @@ toPlot$driver_all <- factor(
 
 colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
 
-test <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
+results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "All Divisions") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+results_corporate <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
@@ -161,7 +210,95 @@ test <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y
     plot.subtitle = element_text(hjust = 0.5)
   )
 
-ggplot(toPlot %>% filter(date == "Nov. 2017"), 
+results_scc <- ggplot(toPlot %>% filter(division == "Shaw Conference Centre"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "Shaw Conference Centre") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+results_tourism <- ggplot(toPlot %>% filter(division == "Tourism"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "Tourism") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+results_TI <- ggplot(toPlot %>% filter(division == "Trade and Investment"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "Trade and Investment") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+results_urban <- ggplot(toPlot %>% filter(division == "Urban Economy"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "Urban Economy") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"), 
        aes(x = division, y = driver_all, fill = engagement)) +
   geom_tile(color = "black") +
   geom_text(aes(label = round(engagement, 0))) +
@@ -183,12 +320,97 @@ ggplot(toPlot %>% filter(date == "Nov. 2017"),
     axis.ticks = element_blank(),
     panel.background = element_blank())
 
+# Participation Rates Table
+
+Ptotal <- participateTable %>%
+  spread(key = division, value = participation)
+
+
+# Results Table
+
+#NOVsubset_toTable <- subset(toTable, date == "Nov. 2017")
+
+#NOVsubset_toTable <- subset(NOVtoTable, select = c("division", "engagement"))
+
+#NOVtransposed <- as.data.frame(t(NOVsubset_toTable))
+
+#ft_2017Results <- regulartable(data = NOVtransposed) %>%
+#  align(align = "center", part = "all") %>%
+#  padding(padding = 3, part = "all") %>%
+#  border(border = fp_border(color = "black"), part = "all") %>%
+#  autofit()
+
+#------------------------------------------------------------------------
+# tibble attempt (will not convert to data frame for use with flextable)
+
+EResults2017 <- toTable %>%
+  spread(key = division, value = engagement)
+
+
+EResults2017 <- as.data.frame(EResults2017)
+
+#------------------------------------------------------------------------
+
+#JANsubset_toTable <- subset(toTable, date == "Jan. 2017")
+
+#JANsubset_toTable <- subset(JANsubset_toTable, select = c("division", "engagement"))
+
+#JANtransposed <- as.data.frame(t(JANsubset_toTable))
+
+#ft_2017Results <- regulartable(Results2017) %>%
+#  align(align = "center", part = "all") %>%
+#  padding(padding = 3, part = "all") %>%
+#  border(border = fp_border(color = "black"), part = "all") %>%
+#  autofit()
+
 ppt <- read_pptx()
 
 ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_add_text(str = "Results by Division", type = "title") %>%
+  ph_with_table(value = EResults2017, type = "body", index = 1) %>%
+  ph_with_text(str = "2017 Engagement Results", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
   ph_add_par() %>%
-  ph_with_vg(code = print(test), type = "body")
+  ph_with_vg(code = print(results_all), type = "body") %>%
+  ph_with_text(str = "Overall Results", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(results_corporate), type = "body") %>%
+  ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(results_scc), type = "body") %>%
+  ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(results_tourism), type = "body") %>%
+  ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(results_TI), type = "body") %>%
+  ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(results_urban), type = "body") %>%
+  ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
+  ph_with_vg(code = print(heatmap), type = "body") %>%
+  ph_with_text(str = "Results by Division - Summary", type = "title") %>%
 
-print(ppt, target = "test.pptx")
+print(ppt, target = "test.pptx") %>%
+  invisible()
