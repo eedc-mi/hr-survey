@@ -105,15 +105,17 @@ toTable <- tib %>%
   spread(key = response, value = freq) %>%
   mutate(engagement = `Strongly Agree` + `Agree`) %>% #back-quoting is bad
   select(division, date, engagement) %>%
-  mutate(engagement = engagement * 100)
+  mutate(engagement = percent(engagement))
+
+# Participation Table Creation
 
 pTable <- dataNew %>%
   group_by(`Please identify the division you work in at EEDC.`) %>%
   summarize(respondents = n()) %>%
-  rbind(c("All Divisions", sum(.$respondents)))
+  rbind(list("All Divisions", sum(.$respondents)))
 
 empCountNov <- empCountNov %>%
-  rbind(c("All Divisions", sum(.$count)))
+  rbind(list("All Divisions", sum(.$count)))
 
 pTable <- rename(pTable, division = `Please identify the division you work in at EEDC.`)
 
@@ -127,9 +129,10 @@ pTable <- pTable %>% mutate(division = case_when(
 participateTable <- left_join(pTable, empCountNov)
 
 participateTable <- participateTable %>%
-  mutate(participation = respondents/count*100) %>%
+  mutate(participation = percent(respondents/count)) %>%
   select(division, participation)
-  
+
+# Input for graphs
 
 toPlot <- tib %>%
   group_by(division, driver_all, date) %>%
@@ -322,26 +325,17 @@ heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"),
 
 # Participation Rates Table
 
-Ptotal <- participateTable %>%
-  spread(key = division, value = participation)
+PResults2017 <- participateTable %>%
+  spread(key = division, value = participation) %>%
+  add_column(Date = "Nov. 2017", .before = "All Divisions") %>%
+  add_row(Date = "Jan. 2017", `All Divisions` = percent(113/163), `Corporate` = percent(32/37),
+          `Shaw Conference Centre` = percent(29/51), `Tourism` = percent(25/39),
+          `Trade and Investment` = percent(11/12), `Urban Economy` = percent(16/24),
+          .before = 1)
 
 
-# Results Table
-
-#NOVsubset_toTable <- subset(toTable, date == "Nov. 2017")
-
-#NOVsubset_toTable <- subset(NOVtoTable, select = c("division", "engagement"))
-
-#NOVtransposed <- as.data.frame(t(NOVsubset_toTable))
-
-#ft_2017Results <- regulartable(data = NOVtransposed) %>%
-#  align(align = "center", part = "all") %>%
-#  padding(padding = 3, part = "all") %>%
-#  border(border = fp_border(color = "black"), part = "all") %>%
-#  autofit()
-
-#------------------------------------------------------------------------
-# tibble attempt (will not convert to data frame for use with flextable)
+# Engagement Results Table
+# tibble (will not convert to data frame for use with flextable)
 
 EResults2017 <- toTable %>%
   spread(key = division, value = engagement)
@@ -351,24 +345,16 @@ EResults2017 <- as.data.frame(EResults2017)
 
 #------------------------------------------------------------------------
 
-#JANsubset_toTable <- subset(toTable, date == "Jan. 2017")
-
-#JANsubset_toTable <- subset(JANsubset_toTable, select = c("division", "engagement"))
-
-#JANtransposed <- as.data.frame(t(JANsubset_toTable))
-
-#ft_2017Results <- regulartable(Results2017) %>%
-#  align(align = "center", part = "all") %>%
-#  padding(padding = 3, part = "all") %>%
-#  border(border = fp_border(color = "black"), part = "all") %>%
-#  autofit()
-
 ppt <- read_pptx()
 
 ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_table(value = EResults2017, type = "body", index = 1) %>%
   ph_with_text(str = "2017 Engagement Results", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_table(value = PResults2017, type = "body", index = 1) %>%
+  ph_with_text(str = "2017 Participation Results", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_empty(type = "body") %>%
