@@ -325,6 +325,136 @@ heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"),
     axis.ticks = element_blank(),
     panel.background = element_blank())
 
+# Stacked bar chart attempt
+
+stackdata <- tib %>%
+  group_by(division, driver_all, date) %>%
+  count(response) %>%
+  complete(response, fill = list(n = 0)) %>%
+  filter(! is.na(response)) %>%
+  filter(date == "Nov. 2017") %>%
+  filter(! response == "Neither Agree nor Disagree") %>%
+  mutate(freq = n / sum(n)) %>%
+  mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
+  mutate(freq = ifelse(response == "Strongly Disagree", -freq, freq)) %>%
+  ungroup() %>%
+  select(-n)
+
+UEstack_chart <- ggplot(stackdata %>%
+                        filter(division == "Urban Economy"),
+                      aes(x = driver_all, y = freq, fill = response)) + 
+  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
+           aes(fill = response)) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "Urban Economy") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+CORstack_chart <- ggplot(stackdata %>%
+                          filter(division == "Corporate"),
+                        aes(x = driver_all, y = freq, fill = response)) + 
+  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
+           aes(fill = response)) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "Corporate") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+TOURstack_chart <- ggplot(stackdata %>%
+                          filter(division == "Tourism"),
+                        aes(x = driver_all, y = freq, fill = response)) + 
+  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
+           aes(fill = response)) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "Tourism") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+SCCstack_chart <- ggplot(stackdata %>%
+                          filter(division == "Shaw Conference Centre"),
+                        aes(x = driver_all, y = freq, fill = response)) + 
+  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
+           aes(fill = response)) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "Shaw Conference Centre") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+TIstack_chart <- ggplot(stackdata %>%
+                          filter(division == "Trade and Investment"),
+                        aes(x = driver_all, y = freq, fill = response)) + 
+  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
+           aes(fill = response)) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "Trade and Investment") +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
 # Participation Rates Table
 
 PResults2017 <- participateTable %>%
@@ -385,6 +515,26 @@ ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_vg(code = print(results_urban), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(UEstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(SCCstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(TIstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(CORstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(TOURstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
   
 print(ppt, target = "test.pptx") %>%
   invisible()
