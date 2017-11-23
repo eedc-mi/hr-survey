@@ -359,44 +359,30 @@ ppt %>%
   ph_with_text(str = "2017 Participation Results", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(heatmap), type = "body") %>%
   ph_with_text(str = "Results by Division - Summary", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_all), type = "body") %>%
   ph_with_text(str = "Overall Results", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_corporate), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_scc), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_tourism), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_TI), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
   ph_with_vg(code = print(results_urban), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
