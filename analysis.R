@@ -109,7 +109,9 @@ toTable <- tib %>%
 
 # Participation Table Creation
 
-pTable <- dataNew %>%
+d2 <- dataNew %>% drop_na(`The Executive Team is aligned, communicating and working together.`)
+
+pTable <- d2 %>%
   group_by(`Please identify the division you work in at EEDC.`) %>%
   summarize(respondents = n()) %>%
   rbind(list("All Divisions", sum(.$respondents)))
@@ -192,7 +194,7 @@ results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = dr
   )
 
 results_corporate <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[2]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
   labs(
@@ -214,7 +216,7 @@ results_corporate <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = 
   )
 
 results_scc <- ggplot(toPlot %>% filter(division == "Shaw Conference Centre"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[3]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
   labs(
@@ -236,7 +238,7 @@ results_scc <- ggplot(toPlot %>% filter(division == "Shaw Conference Centre"), a
   )
 
 results_tourism <- ggplot(toPlot %>% filter(division == "Tourism"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[4]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
   labs(
@@ -258,7 +260,7 @@ results_tourism <- ggplot(toPlot %>% filter(division == "Tourism"), aes(x = driv
   )
 
 results_TI <- ggplot(toPlot %>% filter(division == "Trade and Investment"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[5]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
   labs(
@@ -280,7 +282,7 @@ results_TI <- ggplot(toPlot %>% filter(division == "Trade and Investment"), aes(
   )
 
 results_urban <- ggplot(toPlot %>% filter(division == "Urban Economy"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[6]) +
   scale_alpha_discrete(range = c(0.4, 1)) +
   ylim(c(0, 100)) +
   labs(
@@ -359,6 +361,12 @@ ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_empty(type = "body") %>%
   ph_add_par() %>%
+  ph_with_vg(code = print(heatmap), type = "body") %>%
+  ph_with_text(str = "Results by Division - Summary", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_empty(type = "body") %>%
+  ph_add_par() %>%
   ph_with_vg(code = print(results_all), type = "body") %>%
   ph_with_text(str = "Overall Results", type = "title") %>%
   
@@ -392,11 +400,5 @@ ppt %>%
   ph_with_vg(code = print(results_urban), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
   
-  add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_empty(type = "body") %>%
-  ph_add_par() %>%
-  ph_with_vg(code = print(heatmap), type = "body") %>%
-  ph_with_text(str = "Results by Division - Summary", type = "title") %>%
-
 print(ppt, target = "test.pptx") %>%
   invisible()
