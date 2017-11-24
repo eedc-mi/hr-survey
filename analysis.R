@@ -345,6 +345,25 @@ stackdata <- tib %>%
 
 stackdata$response <- factor(stackdata$response, levels = lvls)
 
+stackdata$driver_all <- factor(
+  stackdata$driver_all,
+  levels = rev(c(
+    "Affinity",
+    "Communication",
+    "Compensation",
+    "Development",
+    "Empowerment",
+    "Leadership",
+    "Performance",
+    "Recognition",
+    "Relations",
+    "Teamwork",
+    "Change Leadership",
+    "Direct Manager Support"
+  )),
+  ordered = TRUE
+)
+
 colour_palette <- c("#e74a4e", "#df7081", "#5e94d0", "#7caadc")
 
 ALLstack_chart <- ggplot(stackdata %>%
@@ -357,9 +376,11 @@ ALLstack_chart <- ggplot(stackdata %>%
     subtitle = "All Divisions") +
   facet_wrap(~ date) +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -381,9 +402,11 @@ UEstack_chart <- ggplot(stackdata %>%
     subtitle = "Urban Economy") +
   facet_wrap(~ date) +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -405,9 +428,11 @@ CORstack_chart <- ggplot(stackdata %>%
     subtitle = "Corporate") +
   facet_wrap(~ date) +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -429,9 +454,11 @@ TOURstack_chart <- ggplot(stackdata %>%
     subtitle = "Tourism") +
   facet_wrap(~ date) +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -452,10 +479,12 @@ SCCstack_chart <- ggplot(stackdata %>%
     title = "Frequency of Response Type by Driver", 
     subtitle = "Shaw Conference Centre") +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   facet_wrap(~ date) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -476,10 +505,12 @@ TIstack_chart <- ggplot(stackdata %>%
     title = "Frequency of Response Type by Driver", 
     subtitle = "Trade and Investment") +
   coord_flip() +
+  scale_y_continuous(limits = c(-0.25, 1)) +
   facet_wrap(~ date) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -551,6 +582,10 @@ ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_vg(code = print(results_urban), type = "body") %>%
   ph_with_text(str = "Results by Division", type = "title") %>%
+  
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
+  ph_with_vg(code = print(ALLstack_chart), type = "body") %>%
+  ph_with_text(str = "Response Summary by Division", type = "title") %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_vg(code = print(UEstack_chart), type = "body") %>%
