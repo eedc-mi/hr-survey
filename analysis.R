@@ -327,27 +327,59 @@ heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"),
 
 # Stacked bar chart attempt
 
+lvls <- c("Strongly Disagree", "Disagree", "Strongly Agree", "Agree")
+
 stackdata <- tib %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
   filter(! is.na(response)) %>%
-  filter(date == "Nov. 2017") %>%
+#  filter(date == "Nov. 2017") %>%
   filter(! response == "Neither Agree nor Disagree") %>%
   mutate(freq = n / sum(n)) %>%
   mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
   mutate(freq = ifelse(response == "Strongly Disagree", -freq, freq)) %>%
+#  mutate(response = factor(response, levels = lvls, ordered = TRUE)) %>%
   ungroup() %>%
   select(-n)
 
+stackdata$response <- factor(stackdata$response, levels = lvls)
+
+colour_palette <- c("#e74a4e", "#df7081", "#5e94d0", "#7caadc")
+
+ALLstack_chart <- ggplot(stackdata %>%
+                          filter(division == "All Divisions"),
+                        aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
+  labs(
+    title = "Frequency of Response Type by Driver", 
+    subtitle = "All Divisions") +
+  facet_wrap(~ date) +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
 UEstack_chart <- ggplot(stackdata %>%
                         filter(division == "Urban Economy"),
-                      aes(x = driver_all, y = freq, fill = response)) + 
-  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
-           aes(fill = response)) +
+                      aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Urban Economy") +
+  facet_wrap(~ date) +
   coord_flip() +
   theme_bw() +
   theme(
@@ -365,12 +397,13 @@ UEstack_chart <- ggplot(stackdata %>%
 
 CORstack_chart <- ggplot(stackdata %>%
                           filter(division == "Corporate"),
-                        aes(x = driver_all, y = freq, fill = response)) + 
-  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
-           aes(fill = response)) +
+                        aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Corporate") +
+  facet_wrap(~ date) +
   coord_flip() +
   theme_bw() +
   theme(
@@ -388,12 +421,13 @@ CORstack_chart <- ggplot(stackdata %>%
 
 TOURstack_chart <- ggplot(stackdata %>%
                           filter(division == "Tourism"),
-                        aes(x = driver_all, y = freq, fill = response)) + 
-  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
-           aes(fill = response)) +
+                        aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Tourism") +
+  facet_wrap(~ date) +
   coord_flip() +
   theme_bw() +
   theme(
@@ -411,13 +445,14 @@ TOURstack_chart <- ggplot(stackdata %>%
 
 SCCstack_chart <- ggplot(stackdata %>%
                           filter(division == "Shaw Conference Centre"),
-                        aes(x = driver_all, y = freq, fill = response)) + 
-  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
-           aes(fill = response)) +
+                        aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Shaw Conference Centre") +
   coord_flip() +
+  facet_wrap(~ date) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -434,13 +469,14 @@ SCCstack_chart <- ggplot(stackdata %>%
 
 TIstack_chart <- ggplot(stackdata %>%
                           filter(division == "Trade and Investment"),
-                        aes(x = driver_all, y = freq, fill = response)) + 
-  geom_bar(width = 0.75, stat = "identity", position = position_stack(reverse = TRUE), 
-           aes(fill = response)) +
+                        aes(x = driver_all, y = freq)) + 
+  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Trade and Investment") +
   coord_flip() +
+  facet_wrap(~ date) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
