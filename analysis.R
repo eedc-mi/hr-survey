@@ -2,7 +2,6 @@ library(tidyverse)
 library(here)
 library(scales)
 library(officer)
-library(ReporteRs)
 library(flextable)
 library(rvg)
 
@@ -95,6 +94,7 @@ tib <- bind_rows(
 )
 
 toTable <- tib %>%
+  filter(! driver_all %in% c("Change Leadership", "Direct Manager Support")) %>%
   group_by(division, date) %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
@@ -132,7 +132,7 @@ participateTable <- left_join(pTable, empCountNov)
 
 participateTable <- participateTable %>%
   mutate(participation = percent(respondents/count)) %>%
-  select(division, participation)
+  select(division, participation, respondents)
 
 # Input for graphs
 
@@ -525,12 +525,12 @@ TIstack_chart <- ggplot(stackdata %>%
 # Participation Rates Table
 
 PResults2017 <- participateTable %>%
+  select(-respondents) %>%
   spread(key = division, value = participation) %>%
   add_column(Date = "Nov. 2017", .before = "All Divisions") %>%
   add_row(Date = "Jan. 2017", `All Divisions` = percent(113/163), `Corporate` = percent(32/37),
           `Shaw Conference Centre` = percent(29/51), `Tourism` = percent(25/39),
-          `Trade and Investment` = percent(11/12), `Urban Economy` = percent(16/24),
-          .before = 1)
+          `Trade and Investment` = percent(11/12), `Urban Economy` = percent(16/24), .before = 1)
 
 
 # Engagement Results Table
