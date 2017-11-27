@@ -2,8 +2,6 @@ library(tidyverse)
 library(here)
 library(scales)
 library(officer)
-library(ReporteRs)
-library(flextable)
 library(rvg)
 
 setwd(here())
@@ -169,16 +167,11 @@ toPlot$driver_all <- factor(
   ordered = TRUE
 )
 
+div_list <- unique(toPlot$division)
+
 colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
 
-results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = driver_all, y = engagement, alpha = date)) + 
-  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
-  scale_alpha_discrete(range = c(0.4, 1)) +
-  ylim(c(0, 100)) +
-  labs(
-    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-    subtitle = "All Divisions") +
-  coord_flip() +
+plot_theme <- function(){
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -192,6 +185,68 @@ results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = dr
     plot.title = element_text(hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   )
+}
+
+engageplot <- list()
+
+#for (i in 1:6) {
+for (i in div_list) {
+#  for (i in 1:length(div_list)) {
+#  toPlot <- as.data.frame(div_list[i])
+#  div_name <- unique(toPlot$division)
+  engageplot <- ggplot(toPlot %>% filter(division == division[i]),
+                 aes(x = driver_all, y = engagement, alpha = date)) + 
+    geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[i]) +
+    scale_alpha_discrete(range = c(0.4, 1)) +
+    ylim(c(0, 100)) +
+    labs(
+      title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+      subtitle = toPlot$division[i]) +
+    coord_flip() +
+    plot_theme()
+  
+  }
+
+print(engageplot)
+
+ppt <- read_pptx()
+  ppt %>%
+    add_slide(layout = "Title and Content", master = "Office Theme") %>%
+      ph_with_vg(code = print(engageplot), type = "body") %>%
+      ph_with_text(str = "Results by Division", type = "title")
+  
+  print(ppt, target = "cleaningtest.pptx") %>%
+  invisible()
+  
+# Function to create barcharts
+  
+  create_barchart <- function(df, x, y, alphainput, division, n) {
+    ggplot(df %>%
+      filter(division),
+      aes(x = x, y = y, alpha = alphainput)) + 
+    geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[n]) +
+    scale_alpha_discrete(range = c(0.4, 1)) +
+    ylim(c(0, 100)) +
+    labs(
+      title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+      subtitle = division) +
+    coord_flip() +
+    plot_theme()
+
+  }
+  
+create_barchart(toPlot, toPlot$driver_all, toPlot$engagement, toPlot$date,
+                toPlot$division, 1)  
+  
+results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = driver_all, y = engagement, alpha = date)) + 
+  geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
+  scale_alpha_discrete(range = c(0.4, 1)) +
+  ylim(c(0, 100)) +
+  labs(
+    title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+    subtitle = "All Divisions") +
+  coord_flip() +
+  plot_theme()
 
 results_corporate <- ggplot(toPlot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[2]) +
@@ -334,12 +389,10 @@ stackdata <- tib %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
   filter(! is.na(response)) %>%
-#  filter(date == "Nov. 2017") %>%
   filter(! response == "Neither Agree nor Disagree") %>%
   mutate(freq = n / sum(n)) %>%
   mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
   mutate(freq = ifelse(response == "Strongly Disagree", -freq, freq)) %>%
-#  mutate(response = factor(response, levels = lvls, ordered = TRUE)) %>%
   ungroup() %>%
   select(-n)
 
@@ -366,10 +419,37 @@ stackdata$driver_all <- factor(
 
 colour_palette <- c("#e74a4e", "#df7081", "#5e94d0", "#7caadc")
 
+for (i in 1:6) {ggplot(stackdata %>%
+                         filter(division == division[i]),
+                       aes(x = driver_all, y = freq)) + 
+    geom_bar(width = 0.75, aes(fill = factor(response)), stat = "identity") +
+    scale_fill_manual(values = colour_palette) +
+    labs(
+      title = "Frequency of Response Type by Driver", 
+      subtitle = stackdata$division[i]) +
+    facet_wrap(~ date) +
+    coord_flip() +
+    scale_y_continuous(limits = c(-0.25, 1)) +
+    theme_bw() +
+    theme(
+      panel.border = element_blank(),
+      panel.spacing = unit(1, "lines"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.title = element_blank(),
+      legend.position = "top",
+      axis.title = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5)
+    )
+  }
+
 ALLstack_chart <- ggplot(stackdata %>%
                           filter(division == "All Divisions"),
                         aes(x = driver_all, y = freq)) + 
-  geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
+  geom_bar(width = 0.75, aes(fill = factor(response)), stat = "identity") +
   scale_fill_manual(values = colour_palette) +
   labs(
     title = "Frequency of Response Type by Driver", 
@@ -545,6 +625,13 @@ EResults2017 <- as.data.frame(EResults2017)
 #------------------------------------------------------------------------
 
 ppt <- read_pptx()
+
+for (engage_chart in 1:6) {ppt %>%
+    add_slide(layout = "Title and Content", master = "Office Theme") %>%
+    ph_with_vg(code = print(engage_chart), type = "body") %>%
+    ph_with_text(str = "Results by Division", type = "title")
+  
+}
 
 ppt %>%
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
