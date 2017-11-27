@@ -23,7 +23,7 @@ qsNov <- read_csv(file.path(dataPath, "questions2017.csv"))
 qsJan <- read_csv(file.path(dataPath, "questionsJan2017.csv"))
 empCountNov <- read_csv(file.path(dataPath, "empCountNov212017.csv"))
 
-cleanData <- function(tib, qs, date) {
+cleanData <- function(tib, date) {
   tib <- tib %>% 
     select(
       -contains("Please tell us"),
@@ -39,11 +39,17 @@ cleanData <- function(tib, qs, date) {
     )
   )
   
+  tib <- tib %>% drop_na(3)
+
   tib <- tib %>% gather(key = "question", value = "response", -id, -division)
-  
+
   lvls <- c("Strongly Disagree", "Disagree", "Neither Agree nor Disagree", "Agree", "Strongly Agree")
   tib$response <- factor(tib$response, levels = lvls, ordered = TRUE)
-  
+
+  tib %>% mutate(date = date)
+}
+
+toByDriver <- function(tib, qs) {
   driverList <- unique(
     c(
       unique(qs$driver_1[! is.na(qs$driver_1)]),
@@ -51,6 +57,9 @@ cleanData <- function(tib, qs, date) {
       unique(qs$driver_3[! is.na(qs$driver_3)])
     )
   )
+  
+  # Leadership removed at HR request
+  driverList <- driverList[driverList != "Leadership"]
   
   tib <- tib %>% left_join(qs)
   
@@ -65,7 +74,7 @@ cleanData <- function(tib, qs, date) {
     )
   }
   
-  byDriver %>% mutate(date = date)
+  byDriver
 }
 
 dataOld <- bind_cols(
@@ -82,19 +91,31 @@ dataOld <- bind_cols(
     ))
   )
 )
+
+cleanDataNew <- cleanData(dataNew, "Nov. 2017")
+cleanDataOld <- cleanData(dataOld, "Jan. 2017")
+
+cleanDataAll <- bind_rows(
+  cleanDataNew,
+  cleanDataOld
+)
+
+cleanDataAll <- bind_rows(
+  cleanDataAll, 
+  cleanDataAll %>% mutate(division = "All Divisions")
+)
   
-tib <- bind_rows(
-  cleanData(dataNew, qsNov, "Nov. 2017"), 
-  cleanData(dataOld, qsJan, "Jan. 2017") 
+byDriver <- bind_rows(
+  toByDriver(cleanDataNew, qsNov),
+  toByDriver(cleanDataOld, qsJan)
 )
 
-tib <- bind_rows(
-  tib,
-  tib %>% mutate(division = "All Divisions")
+byDriver <- bind_rows(
+  byDriver,
+  byDriver %>% mutate(division = "All Divisions")
 )
 
-toTable <- tib %>%
-  filter(! driver_all %in% c("Change Leadership", "Direct Manager Support")) %>%
+toTable <- cleanDataAll %>%
   group_by(division, date) %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
@@ -109,34 +130,31 @@ toTable <- tib %>%
 
 # Participation Table Creation
 
-d2 <- dataNew %>% drop_na(`The Executive Team is aligned, communicating and working together.`)
+participateTable <- cleanDataNew %>%
+  spread(key = question, value = response) %>%
+  group_by(division) %>%
+  count() %>%
+  ungroup() %>%
+  add_row(division = "All Divisions", n = sum(.$n)) %>%
+  left_join(
+    empCountNov %>% add_row(division = "All Divisions", count = sum(empCountNov$count))) %>%
+  mutate(participation = percent(n / count)) %>%
+  select(division, participation, n)
 
-pTable <- d2 %>%
-  group_by(`Please identify the division you work in at EEDC.`) %>%
-  summarize(respondents = n()) %>%
-  rbind(list("All Divisions", sum(.$respondents)))
-
-empCountNov <- empCountNov %>%
-  rbind(list("All Divisions", sum(.$count)))
-
-pTable <- rename(pTable, division = `Please identify the division you work in at EEDC.`)
-
-pTable <- pTable %>% mutate(division = case_when(
-  grepl("Corporate", division) ~ "Corporate",
-  grepl("SCC", division) ~ "Shaw Conference Centre",
-  TRUE ~ division
-)
-)
-
-participateTable <- left_join(pTable, empCountNov)
-
-participateTable <- participateTable %>%
-  mutate(participation = percent(respondents/count)) %>%
-  select(division, participation, respondents)
+participateTable %>%
+  left_join(
+    cleanDataOld %>%
+      spread(key = question, value = response) %>%
+      group_by(division) %>%
+      count() %>%
+      ungroup() %>%
+      add_row(division = "All Divisions", n = sum(.$n)),
+    by = "division"
+  )
 
 # Input for graphs
 
-toPlot <- tib %>%
+toPlot <- byDriver %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
@@ -303,17 +321,15 @@ results_urban <- ggplot(toPlot %>% filter(division == "Urban Economy"), aes(x = 
     plot.subtitle = element_text(hjust = 0.5)
   )
 
-heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"), 
-       aes(x = division, y = driver_all, fill = engagement)) +
+heatmap <- ggplot(
+  toPlot %>% filter(date == "Nov. 2017") %>%
+    mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))), 
+  aes(x = division, y = driver_all, fill = bin)) +
   geom_tile(color = "black") +
   geom_text(aes(label = round(engagement, 0))) +
-  scale_fill_gradient2(
-    limits = c(0, 100), 
-    low = "#d7191c", 
-    high = "#1a9641", 
-    mid = "#ffffbf", 
-    midpoint = mean(toPlot$engagement, na.rm = TRUE),
-    guide = "legend") +
+  scale_fill_manual(
+    values = c("#d7191c", "#ffffbf", "#1a9641"),
+    labels = c("0 - 69", "70 - 80", "81 - 100")) + 
   labs(
     fill = "Engagement\nScore",
     title = "Engagement Score by Key Driver and Division",
@@ -329,17 +345,15 @@ heatmap <- ggplot(toPlot %>% filter(date == "Nov. 2017"),
 
 lvls <- c("Strongly Disagree", "Disagree", "Strongly Agree", "Agree")
 
-stackdata <- tib %>%
+stackdata <- byDriver %>%
   group_by(division, driver_all, date) %>%
   count(response) %>%
   complete(response, fill = list(n = 0)) %>%
   filter(! is.na(response)) %>%
-#  filter(date == "Nov. 2017") %>%
-  filter(! response == "Neither Agree nor Disagree") %>%
   mutate(freq = n / sum(n)) %>%
   mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
   mutate(freq = ifelse(response == "Strongly Disagree", -freq, freq)) %>%
-#  mutate(response = factor(response, levels = lvls, ordered = TRUE)) %>%
+  filter(! response == "Neither Agree nor Disagree") %>%
   ungroup() %>%
   select(-n)
 
@@ -370,13 +384,15 @@ ALLstack_chart <- ggplot(stackdata %>%
                           filter(division == "All Divisions"),
                         aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "All Divisions") +
   facet_wrap(~ date) +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -396,13 +412,15 @@ UEstack_chart <- ggplot(stackdata %>%
                         filter(division == "Urban Economy"),
                       aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Urban Economy") +
   facet_wrap(~ date) +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -422,13 +440,15 @@ CORstack_chart <- ggplot(stackdata %>%
                           filter(division == "Corporate"),
                         aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Corporate") +
   facet_wrap(~ date) +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -448,13 +468,15 @@ TOURstack_chart <- ggplot(stackdata %>%
                           filter(division == "Tourism"),
                         aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Tourism") +
   facet_wrap(~ date) +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   theme_bw() +
   theme(
     panel.border = element_blank(),
@@ -474,12 +496,14 @@ SCCstack_chart <- ggplot(stackdata %>%
                           filter(division == "Shaw Conference Centre"),
                         aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Shaw Conference Centre") +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   facet_wrap(~ date) +
   theme_bw() +
   theme(
@@ -500,12 +524,14 @@ TIstack_chart <- ggplot(stackdata %>%
                           filter(division == "Trade and Investment"),
                         aes(x = driver_all, y = freq)) + 
   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-  scale_fill_manual(values = colour_palette) +
+  scale_fill_manual(
+    values = colour_palette,
+    breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
   labs(
     title = "Frequency of Response Type by Driver", 
     subtitle = "Trade and Investment") +
   coord_flip() +
-  scale_y_continuous(limits = c(-0.25, 1)) +
+  scale_y_continuous(limits = c(-0.5, 1)) +
   facet_wrap(~ date) +
   theme_bw() +
   theme(
@@ -525,7 +551,7 @@ TIstack_chart <- ggplot(stackdata %>%
 # Participation Rates Table
 
 PResults2017 <- participateTable %>%
-  select(-respondents) %>%
+  select(-n) %>%
   spread(key = division, value = participation) %>%
   add_column(Date = "Nov. 2017", .before = "All Divisions") %>%
   add_row(Date = "Jan. 2017", `All Divisions` = percent(113/163), `Corporate` = percent(32/37),
