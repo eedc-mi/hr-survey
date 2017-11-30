@@ -4,6 +4,7 @@ library(scales)
 library(officer)
 library(flextable)
 library(rvg)
+library(stringr)
 
 setwd(here())
 
@@ -187,6 +188,20 @@ toPlot$driver_all <- factor(
   ordered = TRUE
 )
 
+toDetailedHeatMap <- byDriver %>%
+  filter(date == "Nov. 2017") %>%
+  group_by(division, driver_all, question) %>%
+  count(response) %>%
+  complete(response, fill = list(n = 0)) %>%
+  filter(! is.na(response)) %>%
+  mutate(freq = n / sum(n)) %>%
+  ungroup() %>%
+  select(-n) %>%
+  spread(key = response, value = freq) %>%
+  mutate(engagement = `Strongly Agree` + `Agree`) %>%
+  select(division, driver_all, question, engagement) %>%
+  mutate(engagement = engagement * 100)
+
 colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
 
 results_all <- ggplot(toPlot %>% filter(division == "All Divisions"), aes(x = driver_all, y = engagement, alpha = date)) + 
@@ -334,12 +349,36 @@ heatmap <- ggplot(
     fill = "Engagement\nScore",
     title = "Engagement Score by Key Driver and Division",
     subtitle = "Percentage of \'Agree\' responses or higher") +
-  scale_x_discrete(position = "top") +
+  scale_x_discrete(position = "top", labels = function(x) str_wrap(x, width = 10)) +
   theme(
     axis.title.x = element_blank(),
     axis.title.y = element_blank(),
     axis.ticks = element_blank(),
     panel.background = element_blank())
+
+makeDetailedHeatMap <- function(tib, driver) {
+  ggplot(
+    tib %>%
+      filter(driver_all == driver) %>%
+      mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))),
+    aes(x = division, y = question, fill = bin)) +
+    geom_tile(color = "black") +
+    geom_text(aes(label = round(engagement, 0))) +
+    scale_fill_manual(
+      values = c("#d7191c", "#ffffbf", "#1a9641"),
+      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
+    labs(
+      fill = "Engagement\nScore",
+      title = paste("Engagement Score by Question and Division -", driver),
+      subtitle = "Percentage of \'Agree\' responses or higher") +
+    scale_x_discrete(position = "top", labels = function(x) str_wrap(x, width = 10)) +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 35)) +
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      axis.ticks = element_blank(),
+      panel.background = element_blank())
+}
 
 # Stacked bar chart attempt
 
@@ -554,9 +593,9 @@ PResults2017 <- participateTable %>%
   select(-n) %>%
   spread(key = division, value = participation) %>%
   add_column(Date = "Nov. 2017", .before = "All Divisions") %>%
-  add_row(Date = "Jan. 2017", `All Divisions` = percent(113/163), `Corporate` = percent(32/37),
-          `Shaw Conference Centre` = percent(29/51), `Tourism` = percent(25/39),
-          `Trade and Investment` = percent(11/12), `Urban Economy` = percent(16/24), .before = 1)
+  add_row(Date = "Jan. 2017", `All Divisions` = percent(0.84), `Corporate` = percent(0.86),
+          `Shaw Conference Centre` = percent(0.71), `Tourism` = percent(0.86),
+          `Trade and Investment` = percent(0.92), `Urban Economy` = percent(1.0), .before = 1)
 
 
 # Engagement Results Table
@@ -631,7 +670,22 @@ ppt %>%
   
   add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_vg(code = print(TOURstack_chart), type = "body") %>%
-  ph_with_text(str = "Response Summary by Division", type = "title") %>%
-  
+  ph_with_text(str = "Response Summary by Division", type = "title")
+
+# Appendix - Heatmap by Question and Driver
+
+drivers <- unique(toPlot$driver_all)
+
+plotList <- lapply(drivers, makeDetailedHeatMap, tib = toDetailedHeatMap)
+
+for (plot in plotList) {
+  ppt %>%
+    add_slide(layout = "Title and Content", master = "Office Theme") %>%
+    ph_with_vg(code = print(plot), type = "body") %>%
+    ph_with_text(str = "Results by Division - Detailed", type = "title")
+}
+
 print(ppt, target = "test.pptx") %>%
   invisible()
+
+
