@@ -24,12 +24,19 @@
 #'    9. Teamwork: Cooperative and coordinated efforts of a group working together to achieve common objectives
 #'    10. Change Leadership: Influence and enthuse others through personal advocacy, vision and drive, and to access resources to build a solid platform for change
 #'    11. Direct Manager Support: Empowering others to act, foster collaboration, and build trust
+#'    
+#'### Analysis
+#'- Engagement Score:
+#'    - Percentage of responses that are **Agree** or higher
+#'    - All questions weighted equally
+#'- Participation Rate:
+#'    - Percentage of respondents who answered at least one survey question
+#'    - Employee counts are current as of the survey launch date
 
 #+ code, include = FALSE
 library(tidyverse)
 library(here)
 library(scales)
-library(flextable)
 library(stringr)
 library(rmarkdown)
 
@@ -155,6 +162,13 @@ summary_table <- clean_data_all %>%
   select(division, date, engagement) %>%
   mutate(engagement = percent(engagement))
 
+clean_data_all %>%
+  spread(key = question, value = response) %>%
+  group_by(division, date) %>%
+  count() %>%
+  ungroup() 
+    
+
 participation_table <- clean_data_new %>%
   spread(key = question, value = response) %>%
   group_by(division) %>%
@@ -162,20 +176,25 @@ participation_table <- clean_data_new %>%
   ungroup() %>%
   add_row(division = "All Divisions", n = sum(.$n)) %>%
   left_join(
-    employee_count_new %>% add_row(division = "All Divisions", count = sum(employee_count_new$count))) %>%
+    employee_count_new %>% 
+      add_row(division = "All Divisions", count = sum(employee_count_new$count))) %>%
   mutate(participation = percent(n / count)) %>%
   select(division, participation, n)
 
-participation_table %>%
+participation_table <- participation_table %>%
   left_join(
     clean_data_old %>%
       spread(key = question, value = response) %>%
       group_by(division) %>%
       count() %>%
       ungroup() %>%
-      add_row(division = "All Divisions", n = sum(.$n)),
-    by = "division"
-  )
+      add_row(division = "All Divisions", n = sum(.$n)) %>%
+      left_join(
+        employee_count_new %>% 
+          add_row(division = "All Divisions", count = sum(employee_count_new$count))) %>%
+      mutate(participation = percent(n / count)) %>%
+      select(division, participation, n),
+    by = "division")
 
 to_yoy_plot <- by_driver %>%
   group_by(division, driver_all, date) %>%
@@ -384,7 +403,27 @@ make_facet_plot <- function(data, div) {
 # EResults2017 <- as.data.frame(EResults2017)
 
 
-#'        
+#'### Engagement Score Results
+#+ echo=FALSE
+knitr::kable(
+  summary_table %>% spread(date, engagement),
+  col.names = c("Division", "Jan. 2017", "Nov. 2017"),
+  caption = "Percentage of Agree Responses or Higher",
+  padding = 6)
+
+#'### Participation Results
+#+ echo=FALSE
+knitr::kable(
+  participation_table,
+  col.names = c(
+    "Division", 
+    "Respondents (Nov. 2017)",
+    "Participation Rate (Nov. 2017)",
+    "Respondents (Jan. 2017)",
+    "Participation Rate (Jan. 2017)"),
+  caption = "Respondents Answering at Least One Question",
+  padding = 6)
+
 #'### Engagement Score by Driver and Division
 #+ echo = FALSE, warning = FALSE, message = FALSE
 make_heatmap
@@ -490,306 +529,3 @@ for (d in unique(to_detailed_heatmap$driver_all)) {
 # 
 # print(ppt, target = "test.pptx") %>%
 #   invisible()
-
-
-
-
-# ALLstack_chart <- ggplot(to_facet_plot %>%
-#                            filter(division == "All Divisions"),
-#                          aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "All Divisions") +
-#   facet_wrap(~ date) +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# UEstack_chart <- ggplot(to_facet_plot %>%
-#                           filter(division == "Urban Economy"),
-#                         aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "Urban Economy") +
-#   facet_wrap(~ date) +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# CORstack_chart <- ggplot(to_facet_plot %>%
-#                            filter(division == "Corporate"),
-#                          aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "Corporate") +
-#   facet_wrap(~ date) +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# TOURstack_chart <- ggplot(to_facet_plot %>%
-#                             filter(division == "Tourism"),
-#                           aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "Tourism") +
-#   facet_wrap(~ date) +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# SCCstack_chart <- ggplot(to_facet_plot %>%
-#                            filter(division == "Shaw Conference Centre"),
-#                          aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "Shaw Conference Centre") +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   facet_wrap(~ date) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# TIstack_chart <- ggplot(to_facet_plot %>%
-#                           filter(division == "Trade and Investment"),
-#                         aes(x = driver_all, y = freq)) + 
-#   geom_bar(width = 0.75, aes(fill = response), stat = "identity") +
-#   scale_fill_manual(
-#     values = colour_palette,
-#     breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree")) +
-#   labs(
-#     title = "Frequency of Response Type by Driver", 
-#     subtitle = "Trade and Investment") +
-#   coord_flip() +
-#   scale_y_continuous(limits = c(-0.5, 1)) +
-#   facet_wrap(~ date) +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.spacing = unit(1, "lines"),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-
-# results_all <- ggplot(to_yoy_plot %>% filter(division == "All Divisions"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[1]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "All Divisions") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# results_corporate <- ggplot(to_yoy_plot %>% filter(division == "Corporate"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[2]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "Corporate") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# results_scc <- ggplot(to_yoy_plot %>% filter(division == "Shaw Conference Centre"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[3]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "Shaw Conference Centre") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# results_tourism <- ggplot(to_yoy_plot %>% filter(division == "Tourism"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[4]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "Tourism") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# results_TI <- ggplot(to_yoy_plot %>% filter(division == "Trade and Investment"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[5]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "Trade and Investment") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# 
-# results_urban <- ggplot(to_yoy_plot %>% filter(division == "Urban Economy"), aes(x = driver_all, y = engagement, alpha = date)) + 
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge", fill = colors[6]) +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = "Urban Economy") +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
