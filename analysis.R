@@ -47,15 +47,15 @@ data_path <- file.path(
   "Corporate",
   "Human Resources",
   "Employee Engagement Survey Results",
-  "Nov 2017",
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "nov2017.csv"))
-data_old <- read_csv(file.path(data_path, "jan2017.csv"))
-questions_new <- read_csv(file.path(data_path, "questions2017.csv"))
-questions_old <- read_csv(file.path(data_path, "questionsJan2017.csv"))
-employee_count_new <- read_csv(file.path(data_path, "empCountNov212017.csv"))
+data_new <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
+data_old <- read_csv(file.path(data_path, "jan_2017", "responses_jan_2017.csv"))
+questions_new <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
+questions_old <- read_csv(file.path(data_path, "jan_2017", "questions_jan_2017.csv"))
+employee_count_new <- read_csv(file.path(data_path, "nov_2017", "employees_nov_2017.csv"))
+employee_count_old <- read_csv(file.path(data_path, "jan_2017", "employees_jan_2017.csv"))
 
 clean_data <- function(tib, date) {
   tib <- tib %>% 
@@ -149,6 +149,11 @@ by_driver <- bind_rows(
   by_driver %>% mutate(division = "All Divisions")
 )
 
+employee_count_all <- bind_rows(
+  employee_count_new %>% mutate(date = "Nov. 2017"),
+  employee_count_old %>% mutate(date = "Jan. 2017")
+)
+
 summary_table <- clean_data_all %>%
   group_by(division, date) %>%
   count(response) %>%
@@ -166,7 +171,11 @@ clean_data_all %>%
   spread(key = question, value = response) %>%
   group_by(division, date) %>%
   count() %>%
-  ungroup() 
+  ungroup() %>%
+  left_join(employee_count_all, by = c("division", "date")) %>%
+  mutate(participation = percent(n / count)) %>%
+  select(-count, -n) %>%
+  spread(date, participation)
     
 
 participation_table <- clean_data_new %>%
