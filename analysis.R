@@ -230,35 +230,6 @@ to_facet_plot <- by_driver %>%
 lvls <- c("Strongly Disagree", "Disagree", "Strongly Agree", "Agree")
 to_facet_plot$response <- factor(to_facet_plot$response, levels = lvls)
 
-#colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
-# make_yoy_plot <- function(tbl_df, div) {
-#   ggplot(
-#     tbl_df %>% filter(division == div), 
-#     aes(x = driver_all, y = engagement, alpha = date)
-#   ) + 
-#   #geom_bar(width = 0.75, stat = "identity", position = "dodge",  fill = "#1b9e77") +
-#   geom_bar(width = 0.75, stat = "identity", position = "dodge",  fill = "#5e94d0") +
-#   scale_alpha_discrete(range = c(0.4, 1)) +
-#   ylim(c(0, 100)) +
-#   labs(
-#     title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-#     subtitle = div) +
-#   coord_flip() +
-#   theme_bw() +
-#   theme(
-#     panel.border = element_blank(),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     axis.line = element_line(color = "black"),
-#     legend.title = element_blank(),
-#     legend.position = "top",
-#     axis.title = element_blank(),
-#     plot.title = element_text(hjust = 0.5),
-#     plot.subtitle = element_text(hjust = 0.5)
-#   )
-# }
-
 make_yoy_plot <- function(tbl_df, div) {
   ggplot(
     tbl_df %>% filter(division == div), 
