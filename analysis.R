@@ -1,12 +1,13 @@
 #'---
 #'title: EEDC Employee Engagement Survey
-#'author: Market Intelligence
-#'date: Nov 5, 2018
+#'author: Nov. 2017 Results
+#'date:
 #'output:
 #'  beamer_presentation
+#'classoption: a4paper
 #'---
 #'
-#'### 2018 Employee Engagement Survey
+#'### 2017 Employee Engagement Survey
 #'- 34 "quantitative" questions, categorized into 9 engagement drivers and two focus areas
 #'- Some questions associated with more than one driver
 #'- 11 engagement drivers:
@@ -17,7 +18,7 @@
 #'    5. Empowerment: I feel supported to make decisions
 #'    6. Performance: Execution and accomplishment of work
 #'        
-#'### 2018 Employee Engagement Survey
+#'### 2017 Employee Engagement Survey
 #'- 11 engagement drivers (cont.):
 #'    7. Recognition: My efforts and accomplishments are acknowledged
 #'    8. Relations: Relationship between the employer and employee, based on foundation of trust and respect
@@ -304,7 +305,6 @@ make_detail_heatmap <- function(tbl_df, driver) {
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
     scale_fill_manual(
-      #values = c("#d7191c", "#ffffbf", "#1a9641"),
       values = c(colour_lowest, "white", colour_highest),
       labels = c("0 - 69", "70 - 80", "81 - 100")) + 
     labs(
@@ -323,7 +323,7 @@ make_detail_heatmap <- function(tbl_df, driver) {
 make_facet_plot <- function(tbl_df, div) {
   palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
   
-  ggplot(tbl_df %>% filter(division == div),
+  ggplot(tbl_df %>% filter(division == div) %>% mutate(freq = round(freq, 4)),
          aes(x = driver_all, y = freq)) + 
     geom_bar(width = 0.75, aes(fill = response), stat = "identity")+
     scale_fill_manual(
@@ -357,16 +357,18 @@ make_facet_plot <- function(tbl_df, div) {
 knitr::kable(
   summary_table %>% spread(date, engagement),
   col.names = c("Division", "Jan. 2017", "Nov. 2017"),
-  caption = "Engagement Score\n(Percentage of Agree Responses or Higher)",
-  padding = 6)
+  caption = "Engagement Score (% \'Agree\' Responses or Higher)",
+  align = c('l', 'r', 'r'),
+  padding = 12)
 
 #'### Participation Results
 #+ echo=FALSE
 knitr::kable(
   participation_table,
   col.names = c("Division", "Jan. 2017", "Nov. 2017"),
-  caption = "Participation Rate\n(Respondents Answering at Least One Question)",
-  padding = 6)
+  caption = "Participation Rate (Answered at Least One Question)",
+  align = c('l', 'r', 'r'),
+  padding = 12)
 
 #'### Engagement Score by Driver and Division
 #+ echo = FALSE, warning = FALSE, message = FALSE
