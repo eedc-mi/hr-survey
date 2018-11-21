@@ -204,9 +204,18 @@ participation_table <- clean_data_all %>%
   select(-count, -n) %>%
   spread(date, participation)
 
+# to_yoy_plot <- by_driver %>%
+#   calc_engagement_by(division, driver_all, date) %>%
+#   select(division, driver_all, date, engagement) %>%
+#   complete(division, date, driver_all) %>%
+#   mutate(engagement = engagement * 100)
+
 to_yoy_plot <- by_driver %>%
   calc_engagement_by(division, driver_all, date) %>%
   select(division, driver_all, date, engagement) %>%
+  spread(date, engagement) %>%
+  mutate(is_negative = `Nov. 2017` - `Jan. 2017` < 0) %>%
+  gather(date, engagement, -division, -driver_all, -is_negative) %>%
   complete(division, date, driver_all) %>%
   mutate(engagement = engagement * 100)
 
@@ -230,13 +239,21 @@ to_facet_plot <- by_driver %>%
 lvls <- c("Strongly Disagree", "Disagree", "Strongly Agree", "Agree")
 to_facet_plot$response <- factor(to_facet_plot$response, levels = lvls)
 
+colour_lowest <- "#e74a4e"
+colour_low <- "#df7081"
+colour_high <- "#5e94d0"
+colour_highest <- "#7caadc"
+  
+#c("#e74a4e", "#df7081", "#5e94d0", "#7caadc")
+
 make_yoy_plot <- function(tbl_df, div) {
   ggplot(
     tbl_df %>% filter(division == div), 
     aes(x = driver_all, y = engagement, fill = date, group = driver_all)) +
     geom_point(shape = 21, size = 5, colour = "black") +
-    geom_line(arrow = arrow(length=unit(0.30,"cm"), type = "closed"), colour = "black", show.legend = FALSE) +
-    scale_fill_manual(values = c("#ffffff", "#5e94d0")) +
+    geom_line(aes(colour = is_negative), arrow = arrow(length=unit(0.30,"cm"), type = "closed"), show.legend = FALSE) +
+    scale_fill_manual(values = c("white", "darkgrey")) +
+    scale_color_manual(values = c(colour_highest, colour_lowest)) +
     ylim(c(25, 100)) +
     labs(
       title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
@@ -265,7 +282,7 @@ make_yoy_plot <- function(tbl_df, div) {
   geom_text(aes(label = engagement)) +
   scale_fill_manual(
     #values = c("#d7191c", "#ffffbf", "#1a9641"),
-    values = c("#df7081", "#ffffff", "#5e94d0"),
+    values = c(colour_lowest, "white", colour_highest),
     labels = c("0 - 69", "70 - 80", "81 - 100")) + 
   labs(
     fill = "Engagement\nScore",
@@ -288,7 +305,7 @@ make_detail_heatmap <- function(tbl_df, driver) {
     geom_text(aes(label = engagement)) +
     scale_fill_manual(
       #values = c("#d7191c", "#ffffbf", "#1a9641"),
-      values = c("#df7081", "#ffffff", "#5e94d0"),
+      values = c(colour_lowest, "white", colour_highest),
       labels = c("0 - 69", "70 - 80", "81 - 100")) + 
     labs(
       fill = "Engagement\nScore",
@@ -304,13 +321,13 @@ make_detail_heatmap <- function(tbl_df, driver) {
 }
 
 make_facet_plot <- function(tbl_df, div) {
-  colour_palette <- c("#e74a4e", "#df7081", "#5e94d0", "#7caadc")
+  palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
   
   ggplot(tbl_df %>% filter(division == div),
          aes(x = driver_all, y = freq)) + 
     geom_bar(width = 0.75, aes(fill = response), stat = "identity")+
     scale_fill_manual(
-      values = colour_palette,
+      values = palette,
       breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree"))  +
     labs(
       title = "Frequency of Response Type by Driver", 
