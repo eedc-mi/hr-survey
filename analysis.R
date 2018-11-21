@@ -51,35 +51,66 @@ data_path <- file.path(
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
-data_old <- read_csv(file.path(data_path, "jan_2017", "responses_jan_2017.csv"))
-questions_new <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
-questions_old <- read_csv(file.path(data_path, "jan_2017", "questions_jan_2017.csv"))
-employee_count_new <- read_csv(file.path(data_path, "nov_2017", "employees_nov_2017.csv"))
-employee_count_old <- read_csv(file.path(data_path, "jan_2017", "employees_jan_2017.csv"))
+data_new <- read_csv(file.path(data_path, "2018", "prelim_responses_2018.csv"))
+data_old <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
+questions_new <- read_csv(file.path(data_path, "2018", "questions_2018.csv"))
+questions_old <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
+employees_new <- read_csv(file.path(data_path, "2018", "employees_2018.csv"))
+employee_count_old <- read_csv(file.path(data_path, "nov_2017", "employees_nov_2017.csv"))
+
+count_employees <- function(tbl_df) {
+  tbl_df %>% 
+    group_by(division) %>%
+    count() %>%
+    rename(count = n) %>%
+    ungroup() %>%
+    mutate(division = case_when(
+      division == "Expo" ~ "Edmonton Expo Centre",
+      division == "SCC" ~ "Shaw Conference Centre",
+      TRUE ~ division
+    ))
+}
+
+employee_count_new <- count_employees(employees_new)
 
 clean_data <- function(tbl_df, date) {
   tbl_df <- tbl_df %>% 
     select(
-      -contains("Please tell us"),
-      division = 2,
-      id = "Respondent ID"
-    )
+      -starts_with("Please tell us"),
+      -starts_with("Collector"),
+      -starts_with("Start"), 
+      -starts_with("End"),
+      division = starts_with("Please identify"),
+      id = "Respondent ID") %>%
+    select(1:(ncol(.) - 4))
   
   tbl_df <- tbl_df %>% mutate(
     division = case_when(
       grepl("Corporate", division) ~ "Corporate",
-      grepl("SCC", division) ~ "Shaw Conference Centre",
+      division == "SCC" ~ "Shaw Conference Centre",
+      division == "Trade and Investment" ~ "Enterprise Edmonton",
+      division == "Urban Economy" ~ "Innovate Edmonton",
+      division == "Tourism" ~ "Edmonton Tourism",
       TRUE ~ division
     )
   )
   
-  tbl_df <- tbl_df %>% drop_na(3)
+  division_question_index <- which(grepl("Please identify", names(tbl_df)))
+  tbl_df <- tbl_df %>% drop_na(division_question_index + 1)
+  
+  lvls_upper <- c("Strongly Disagree", "Disagree", "Neither Agree nor Disagree", "Agree", "Strongly Agree")
+  lvls_lower <- c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree")
 
-  tbl_df <- tbl_df %>% gather(key = "question", value = "response", -id, -division)
-
-  lvls <- c("Strongly Disagree", "Disagree", "Neither Agree nor Disagree", "Agree", "Strongly Agree")
-  tbl_df$response <- factor(tbl_df$response, levels = lvls, ordered = TRUE)
+  tbl_df <- tbl_df %>% 
+    gather(key = "question", value = "response", -id, -division) %>%
+    mutate(response = case_when(
+      response == "Strongly Disagree" ~ "Strongly disagree",
+      response == "Strongly Agree" ~ "Strongly agree",
+      response == "Neither Agree nor Disagree" ~ "Neither agree nor disagree",
+      TRUE ~ response
+    ))
+  
+  tbl_df$response <- factor(tbl_df$response, levels = lvls_lower, ordered = TRUE)
 
   tbl_df %>% mutate(date = date)
 }
@@ -132,23 +163,24 @@ to_by_driver <- function(tbl_df, qs) {
   by_driver
 }
 
-data_old <- bind_cols(
-  data_old %>% select("Respondent ID", "Division"),
-  data_old %>% select(-1, -2) %>% mutate_all(
-    funs(recode(
-      .,
-      `5` = "Strongly Agree",          
-      `4` = "Agree",
-      `3` = "Neither Agree nor Disagree",
-      `2` = "Disagree",
-      `1` = "Strongly Disagree",
-      .default = NA_character_
-    ))
-  )
-)
+# ----- Old code for dealing with Jan. 2017 survey--------
+# data_old <- bind_cols(
+#   data_old %>% select("Respondent ID", "Division"),
+#   data_old %>% select(-1, -2) %>% mutate_all(
+#     funs(recode(
+#       .,
+#       `5` = "Strongly Agree",          
+#       `4` = "Agree",
+#       `3` = "Neither Agree nor Disagree",
+#       `2` = "Disagree",
+#       `1` = "Strongly Disagree",
+#       .default = NA_character_
+#     ))
+#   )
+# )
 
-clean_data_new <- clean_data(data_new, "Nov. 2017")
-clean_data_old <- clean_data(data_old, "Jan. 2017")
+clean_data_new <- clean_data(data_new, "2018")
+clean_data_old <- clean_data(data_old, "Nov. 2017")
 
 clean_data_all <- bind_rows(
   clean_data_new,
@@ -158,6 +190,10 @@ clean_data_all <- bind_rows(
 clean_data_all <- bind_rows(
   clean_data_all, 
   clean_data_all %>% mutate(division = "All Divisions")
+)
+
+clean_data_all$date <- factor(
+  clean_data_all$date, c("Nov. 2017", "2018"), ordered = TRUE
 )
   
 by_driver <- bind_rows(
@@ -170,9 +206,13 @@ by_driver <- bind_rows(
   by_driver %>% mutate(division = "All Divisions")
 )
 
+by_driver$date <- factor(
+  by_driver$date, c("Nov. 2017", "2018"), ordered = TRUE
+)
+
 employee_count_all <- bind_rows(
-  employee_count_new %>% mutate(date = "Nov. 2017"),
-  employee_count_old %>% mutate(date = "Jan. 2017")
+  employee_count_new %>% mutate(date = "2018"),
+  employee_count_old %>% mutate(date = "Nov. 2017")
 )
 
 calc_engagement_by <- function(tbl_df, ...) {
@@ -187,7 +227,7 @@ calc_engagement_by <- function(tbl_df, ...) {
     ungroup() %>%
     select(-n) %>%
     spread(key = response, value = freq) %>%
-    mutate(engagement = `Strongly Agree` + `Agree`) 
+    mutate(engagement = `Strongly agree` + `Agree`) 
 }
 
 summary_table <- clean_data_all %>%
@@ -215,13 +255,13 @@ to_yoy_plot <- by_driver %>%
   calc_engagement_by(division, driver_all, date) %>%
   select(division, driver_all, date, engagement) %>%
   spread(date, engagement) %>%
-  mutate(is_negative = `Nov. 2017` - `Jan. 2017` < 0) %>%
+  mutate(is_negative = `2018` - `Nov. 2017` < 0) %>%
   gather(date, engagement, -division, -driver_all, -is_negative) %>%
   complete(division, date, driver_all) %>%
   mutate(engagement = engagement * 100)
 
 to_detailed_heatmap <- by_driver %>%
-  filter(date == "Nov. 2017") %>%
+  filter(date == "2018") %>%
   calc_engagement_by(division, driver_all, question) %>%
   select(division, driver_all, question, engagement) %>%
   mutate(engagement = engagement * 100)
@@ -233,11 +273,11 @@ to_facet_plot <- by_driver %>%
   filter(! is.na(response)) %>%
   mutate(freq = n / sum(n)) %>%
   mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
-  mutate(freq = ifelse(response == "Strongly Disagree", -freq, freq)) %>%
-  filter(! response == "Neither Agree nor Disagree") %>%
+  mutate(freq = ifelse(response == "Strongly disagree", -freq, freq)) %>%
+  filter(! response == "Neither agree nor disagree") %>%
   ungroup() %>%
   select(-n)
-lvls <- c("Strongly Disagree", "Disagree", "Strongly Agree", "Agree")
+lvls <- c("Strongly disagree", "Disagree", "Strongly agree", "Agree")
 to_facet_plot$response <- factor(to_facet_plot$response, levels = lvls)
 
 colour_lowest <- "#e74a4e"
@@ -275,7 +315,7 @@ make_yoy_plot <- function(tbl_df, div) {
 }
 
  make_heatmap <- ggplot(
-  to_yoy_plot %>% filter(date == "Nov. 2017") %>%
+  to_yoy_plot %>% filter(date == "2018") %>%
     mutate(engagement = round(engagement)) %>%
     mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))), 
   aes(x = division, y = driver_all, fill = bin)) +
@@ -328,7 +368,7 @@ make_facet_plot <- function(tbl_df, div) {
     geom_bar(width = 0.75, aes(fill = response), stat = "identity")+
     scale_fill_manual(
       values = palette,
-      breaks = c("Strongly Disagree", "Disagree", "Agree", "Strongly Agree"))  +
+      breaks = c("Strongly disagree", "Disagree", "Agree", "Strongly agree"))  +
     labs(
       title = "Frequency of Response Type by Driver", 
       subtitle = div) + 
@@ -356,7 +396,7 @@ make_facet_plot <- function(tbl_df, div) {
 #+ echo=FALSE
 knitr::kable(
   summary_table %>% spread(date, engagement),
-  col.names = c("Division", "Jan. 2017", "Nov. 2017"),
+  col.names = c("Division", "Nov. 2017", "2018"),
   caption = "Engagement Score (% \'Agree\' Responses or Higher)",
   align = c('l', 'r', 'r'),
   padding = 12)
@@ -365,7 +405,7 @@ knitr::kable(
 #+ echo=FALSE
 knitr::kable(
   participation_table,
-  col.names = c("Division", "Jan. 2017", "Nov. 2017"),
+  col.names = c("Division", "Nov. 2017", "2018"),
   caption = "Participation Rate (Answered at Least One Question)",
   align = c('l', 'r', 'r'),
   padding = 12)
@@ -397,84 +437,3 @@ for (d in rev(unique(to_detailed_heatmap$driver_all))) {
     cat("  \n")  
   }
 }
-
-
-#+ old, include = FALSE
-# ppt <- read_pptx()
-# 
-# ppt %>%
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_table(value = EResults2017, type = "body", index = 1) %>%
-#   ph_with_text(str = "2017 Engagement Results", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_table(value = PResults2017, type = "body", index = 1) %>%
-#   ph_with_text(str = "2017 Participation Results", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(heatmap), type = "body") %>%
-#   ph_with_text(str = "Results by Division - Summary", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_all), type = "body") %>%
-#   ph_with_text(str = "Overall Results", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_corporate), type = "body") %>%
-#   ph_with_text(str = "Results by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_scc), type = "body") %>%
-#   ph_with_text(str = "Results by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_tourism), type = "body") %>%
-#   ph_with_text(str = "Results by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_TI), type = "body") %>%
-#   ph_with_text(str = "Results by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(results_urban), type = "body") %>%
-#   ph_with_text(str = "Results by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(ALLstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(UEstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(SCCstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(TIstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(CORstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title") %>%
-#   
-#   add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#   ph_with_vg(code = print(TOURstack_chart), type = "body") %>%
-#   ph_with_text(str = "Response Summary by Division", type = "title")
-# 
-# # Appendix - Heatmap by Question and Driver
-# 
-# drivers <- unique(to_yoy_plot$driver_all)
-# 
-# plotList <- lapply(drivers, make_detail_heatmap, tbl_df = to_detailed_heatmap)
-# 
-# for (plot in plotList) {
-#   ppt %>%
-#     add_slide(layout = "Title and Content", master = "Office Theme") %>%
-#     ph_with_vg(code = print(plot), type = "body") %>%
-#     ph_with_text(str = "Results by Division - Detailed", type = "title")
-# }
-# 
-# print(ppt, target = "test.pptx") %>%
-#   invisible()
