@@ -1,6 +1,6 @@
 #'---
 #'title: EEDC Employee Engagement Survey
-#'author: 2018 Preliminary Results
+#'author: 2018 Results
 #'date:
 #'output:
 #'  beamer_presentation
@@ -33,6 +33,7 @@
 #'- Participation Rate:
 #'    - Percentage of respondents who answered at least one survey question
 #'    - Employee counts are current as of the survey launch date
+#'    - This year we were much more rigourous with the survey distribution list. Take 2017 participation rates with a grain of salt.
 
 #+ code, include = FALSE
 library(tidyverse)
@@ -51,7 +52,7 @@ data_path <- file.path(
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "2018", "prelim_responses_2018.csv"))
+data_new <- read_csv(file.path(data_path, "2018", "responses_2018.csv"))
 data_old <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
 questions_new <- read_csv(file.path(data_path, "2018", "questions_2018.csv"))
 questions_old <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
@@ -194,6 +195,13 @@ clean_data_all <- bind_rows(
   clean_data_all, 
   clean_data_all %>% mutate(division = "All Divisions")
 )
+
+clean_data_new %>%
+  filter(division != "Edmonton Expo Centre") %>%
+  bind_rows(
+    clean_data_new %>% filter(division != "Edmonton Expo Centre") %>%
+      mutate(division = "All Divisions")) %>%
+  calc_engagement_by(division, date)
   
 by_driver <- bind_rows(
   to_by_driver(clean_data_new, questions_new),
@@ -232,7 +240,14 @@ calc_engagement_by <- function(tbl_df, ...) {
 summary_table <- clean_data_all %>%
   calc_engagement_by(division, date) %>%
   select(division, date, engagement) %>%
-  mutate(engagement = percent(engagement, 1))
+  mutate(engagement = percent(engagement, 1)) %>%
+  bind_rows(
+    clean_data_all %>% 
+      filter(division != "Edmonton Expo Centre", division != "All Divisions") %>%
+      mutate(division = "All Divisions (excl. Expo)") %>%
+      calc_engagement_by(division, date) %>%
+      select(division, date, engagement) %>%
+      mutate(engagement = percent(engagement, 1)))
 
 participation_table <- clean_data_all %>%
   spread(key = question, value = response) %>%
@@ -410,7 +425,8 @@ make_yoy_facet <- function(tbl_df, driver) {
   
   ggplot(tbl_df %>% filter(driver_all == driver) %>%
            mutate(engagement = round(engagement)), 
-         aes(x = factor(date), y = engagement, group = division, label = engagement, colour = change)) + 
+         aes(x = factor(date), y = engagement, 
+             group = division, label = engagement, colour = change)) + 
     facet_grid(
       question ~ division, 
       switch = "y", 
@@ -418,10 +434,10 @@ make_yoy_facet <- function(tbl_df, driver) {
         question = format_label(35),
         division = format_label(10))) + 
     geom_point(show.legend = FALSE) +
-    geom_text(nudge_y = 8, size = 3, show.legend = FALSE) +
+    geom_text(nudge_y = 3, hjust = "center", vjust = "bottom", size = 3, show.legend = FALSE) +
     geom_line(show.legend = FALSE) +
     scale_colour_manual(values = c(colour_lowest, colour_highest, "darkgrey")) +
-    scale_y_continuous(expand = expand_scale(mult = c(0.1, 0.1))) +
+    scale_y_continuous(expand = expand_scale(mult = c(0.4, 0.4))) +
     labs(
       title = driver,
       subtitle = "Percentage of \'Agree\' responses or higher") +
@@ -439,6 +455,8 @@ make_yoy_facet <- function(tbl_df, driver) {
 }
 
 #'### Engagement Score Results
+#'- Included "All Divisions (excl. Expo)" for comparison to last year, not much difference so will not
+#'include in following analysis
 #+ echo=FALSE
 knitr::kable(
   summary_table %>% spread(date, engagement),
@@ -448,6 +466,7 @@ knitr::kable(
   padding = 12)
 
 #'### Participation Results
+#'- Aware of anomaly in Tourism participation rate, unfortunately not enough information to find the cause
 #+ echo=FALSE
 knitr::kable(
   participation_table,
@@ -487,7 +506,7 @@ for (d in rev(unique(to_detailed_heatmap$driver_all))) {
 #+ echo=FALSE, message=FALSE, warning=FALSE, results='asis'
 for (d in rev(unique(to_yoy_facet$driver_all))) {
   if (! d == "All Drivers") {
-    cat("\n###", " Engagement by Question and Division",  "\n")
+    cat("\n###", " Year to Year Comparison - Engagement by Question",  "\n")
     print(make_yoy_facet(to_yoy_facet, d))
     cat("  \n")  
   }
