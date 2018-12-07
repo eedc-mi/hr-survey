@@ -5,10 +5,6 @@
 #'output: 
 #'  beamer_presentation:
 #'    keep_tex: true
-#'header-includes:
-#'  - \pgfpagesuselayout{2 on 1}
-#'  - \setbeamertemplate{footline}{\hfill\insertframenumber}
-#'classoption: "handout"
 #'---
 #'
 #'### 2018 Employee Engagement Survey
