@@ -2,9 +2,13 @@
 #'title: EEDC Employee Engagement Survey
 #'author: 2018 Results
 #'date:
-#'output:
-#'  beamer_presentation
-#'classoption: a4paper
+#'output: 
+#'  beamer_presentation:
+#'    keep_tex: true
+#'header-includes:
+#'  - \pgfpagesuselayout{2 on 1}
+#'  - \setbeamertemplate{footline}{\hfill\insertframenumber}
+#'classoption: "handout"
 #'---
 #'
 #'### 2018 Employee Engagement Survey
@@ -52,7 +56,7 @@ data_path <- file.path(
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "2018", "responses_2018.csv"))
+data_new <- read_csv(file.path(data_path, "2018", "responses_2018_update.csv"))
 data_old <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
 questions_new <- read_csv(file.path(data_path, "2018", "questions_2018.csv"))
 questions_old <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
@@ -195,13 +199,6 @@ clean_data_all <- bind_rows(
   clean_data_all, 
   clean_data_all %>% mutate(division = "All Divisions")
 )
-
-clean_data_new %>%
-  filter(division != "Edmonton Expo Centre") %>%
-  bind_rows(
-    clean_data_new %>% filter(division != "Edmonton Expo Centre") %>%
-      mutate(division = "All Divisions")) %>%
-  calc_engagement_by(division, date)
   
 by_driver <- bind_rows(
   to_by_driver(clean_data_new, questions_new),
