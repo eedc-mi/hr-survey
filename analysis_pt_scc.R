@@ -1,13 +1,13 @@
 #'---
 #'title: EEDC Venue Operations Employee Engagement Survey
-#'author: 2018 Results - SCC
+#'author: 2018 Results - ECC
 #'date:
 #'output: 
 #'  beamer_presentation
 #'---
 #'
 #'### 2018 Employee Engagement Survey
-#'- 34 "quantitative" questions, categorized into 9 engagement drivers and two focus areas
+#'- 18 "quantitative" questions, categorized into 11 engagement drivers
 #'- Some questions associated with more than one driver
 #'- 11 engagement drivers:
 #'    1. Affinity: I like the place and people
@@ -30,9 +30,8 @@
 #'    - Percentage of responses that are **Agree** or higher
 #'    - All questions weighted equally
 #'- Participation Rate:
-#'    - Percentage of respondents who answered at least one survey question
+#'    - Percentage of respondents who answered at least one survey question past venue/department
 #'    - Employee counts are current as of the survey launch date
-#'    - This year we were much more rigourous with the survey distribution list. Take 2017 participation rates with a grain of salt.
 
 #+ code, include = FALSE
 library(tidyverse)
@@ -53,391 +52,86 @@ data_path <- file.path(
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "2018", "pt", "responses_prelim_pt_2018.csv"))
+data_new <- read_csv(file.path(data_path, "2018", "pt", "responses_pt_2018.csv"))
 questions_new <- read_csv(file.path(data_path, "2018", "pt", "questions_pt_2018.csv"))
 employees_new <- read_csv(file.path(data_path, "2018", "pt", "employees_pt_2018.csv"))
 
-update_division_names <- function(tbl_df) {
-  tbl_df %>% mutate(
-    division = case_when(
-      grepl("Corporate", division) ~ "Corporate",
-      division == "SCC" ~ "Shaw Conference Centre",
-      division == "Expo" ~ "Edmonton Expo Centre",
-      division == "Trade and Investment" ~ "Enterprise Edmonton",
-      division == "Urban Economy" ~ "Innovate Edmonton",
-      division == "Tourism" ~ "Edmonton Tourism",
-      TRUE ~ division
-    )
-  )  
-}
+dept_name_lvls <- list(
+  Banquets = "Banquets and Bars",
+  Bars = "Banquets and Bars",
+  "Event Services" = "Event Services and Housekeeping",
+  "Guest Services" = "Guest Experience",
+  Housekeeping = "Event Services and Housekeeping",
+  Kitchen = "Kitchen and Stewarding",
+  Maintenance = "Engineering and Maintenance",
+  Stewarding = "Kitchen and Stewarding"
+)
 
-# count_employees <- function(tbl_df) {
-#   tbl_df %>% 
-#     group_by(division) %>%
-#     count() %>%
-#     rename(count = n) %>%
-#     ungroup() %>%
-#     add_row(division = "All Divisions", count = sum(.$count)) %>%
-#     update_division_names()
-# }
+clean_data_new <- data_new %>%
+  clean_data_pt(venue_name_cc, 2018) %>%
+  update_names(department, dept_name_lvls)
 
+by_driver <- clean_data_new %>%
+  to_by_driver_pt(questions_new)
 
-# clean_data <- function(tbl_df, date, division) {
-#   tbl_df <- tbl_df %>%
-#     rename(department_expo = 6, department_scc = 7) %>%
-#     replace_na(list(department_expo = "", department_scc = "")) %>% 
-#     unite("department", c(department_expo, department_scc), sep = "") %>%
-#     na_if("") %>% 
-#     select(
-#       -starts_with("Collector"),
-#       -starts_with("Start"), 
-#       -starts_with("End"),
-#       division = starts_with("What venue"),
-#       id = "Respondent ID") %>%
-#     select(1:(ncol(.) - 4))
-#   
-#   drop_index <- if_else(division == "Shaw Conference Centre", 4, 6)
-#   tbl_df <- tbl_df %>% 
-#     drop_na(drop_index) %>% 
-#     gather(key = "question", value = "response", -id, -division, -department) %>%
-#     mutate(date = date) %>%
-#     filter(division == !! division)
-#   
-#   lvls_lower <- c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree")
-#   tbl_df$response <- factor(tbl_df$response, levels = lvls_lower, ordered = TRUE)
-#   
-#   tbl_df %>% filter(division == !! division)
-# }
-
-# to_by_driver <- function(tbl_df, qs) {
-#   driver_list <- unique(
-#     c(
-#       unique(qs$driver_1[! is.na(qs$driver_1)]),
-#       unique(qs$driver_2[! is.na(qs$driver_2)]), 
-#       unique(qs$driver_3[! is.na(qs$driver_3)])
-#     )
-#   )
-#   
-#   # Leadership removed at HR request
-#   driver_list <- driver_list[driver_list != "Leadership"]
-#   
-#   tbl_df <- tbl_df %>% left_join(qs)
-#   
-#   by_driver <- tbl_df %>%
-#     mutate(driver_all = "All Drivers")
-#   
-#   for (d in driver_list) {
-#     by_driver <- bind_rows(
-#       by_driver,
-#       tbl_df %>%
-#         filter(driver_1 == d | driver_2 == d | driver_3 == d) %>%
-#         mutate(driver_all = d)
-#     )
-#   }
-#   
-#   by_driver$driver_all <- factor(
-#     by_driver$driver_all,
-#     levels = rev(c(
-#       "All Drivers",
-#       "Affinity",
-#       "Communication",
-#       "Compensation",
-#       "Development",
-#       "Empowerment",
-#       "Performance",
-#       "Recognition",
-#       "Relations",
-#       "Teamwork",
-#       "Change Leadership",
-#       "Direct Manager Support"
-#     )),
-#     ordered = TRUE
-#   )
-#   
-#   by_driver
-# }
-
-# calc_engagement_by <- function(tbl_df, ...) {
-#   group_vars <- quos(...)
-#   
-#   tbl_df %>%
-#     group_by(!!!group_vars) %>%
-#     count(response) %>%
-#     complete(response, fill = list(n = 0)) %>%
-#     filter(! is.na(response)) %>%
-#     mutate(freq = n / sum(n)) %>%
-#     ungroup() %>%
-#     select(-n) %>%
-#     spread(key = response, value = freq) %>%
-#     mutate(engagement = `Strongly agree` + `Agree`) 
-# }
-
-clean_data_new <- clean_data_pt(data_new, "Shaw Conference Centre", 2018)
-by_driver <- to_by_driver_pt(clean_data_new, questions_new)
-employee_count_new <- count_employees(employees_new, department, 2018)
+employee_count_new <- employees_new %>%
+  update_names(division, venue_name_lvls) %>%
+  filter(division == venue_name_cc) %>%
+  update_names(department, dept_name_lvls) %>%
+  count_employees(department, 2018)
 
 summary_table <- clean_data_new %>%
-  calc_engagement_by(department) %>%
-  select(department, engagement) %>%
-  mutate(engagement = percent(engagement, 1))
+  make_summary_table_by(department)
 
-participation_table <- clean_data_all %>%
-  spread(key = question, value = response) %>%
-  group_by(deparment, date) %>%
-  count() %>%
-  ungroup() %>%
-  left_join(employee_count_all, by = c("division", "date")) %>%
-  mutate(participation = percent(n / count, 1)) %>%
-  select(-count, -n) %>%
-  spread(date, participation)
+participation_table <- clean_data_new %>%
+  make_participation_table_by(employee_count_new, department, date)
 
-# to_yoy_plot <- by_driver %>%
-#   calc_engagement_by(division, driver_all, date) %>%
-#   select(division, driver_all, date, engagement) %>%
-#   complete(division, date, driver_all) %>%
-#   mutate(engagement = engagement * 100)
-
-to_yoy_plot <- by_driver %>%
-  calc_engagement_by(division, driver_all, date) %>%
-  select(division, driver_all, date, engagement) %>%
-  spread(date, engagement) %>%
-  mutate(is_negative = factor(`2018`- `2017` < 0)) %>%
-  gather(date, engagement, -division, -driver_all, -is_negative) %>%
-  complete(division, date, driver_all) %>%
-  mutate(engagement = engagement * 100)
-
-to_detailed_heatmap <- by_driver %>%
-  filter(date == 2018) %>%
-  calc_engagement_by(division, driver_all, question) %>%
-  select(division, driver_all, question, engagement) %>%
-  mutate(engagement = engagement * 100)
-
-to_yoy_facet <- by_driver %>%
-  calc_engagement_by(date, division, driver_all, question_id) %>%
-  select(date, division, driver_all, question_id, engagement) %>%
-  spread(date, engagement) %>%
-  mutate(
-    diff = `2018`- `2017`,
-    change = case_when(
-      diff > 0 ~ "pos",
-      diff == 0 ~ "zero",
-      diff < 0 ~ "neg"
-    )) %>%
-  select(-diff) %>%
-  gather(date, engagement, -division, -driver_all, -change, -question_id) %>%
-  mutate(engagement = engagement * 100, change = replace_na(change, "zero")) %>%
-  left_join(questions_new, by = "question_id")
-
-to_facet_plot <- by_driver %>%
-  group_by(division, driver_all, date) %>%
-  count(response) %>%
-  complete(response, fill = list(n = 0)) %>%
-  filter(! is.na(response)) %>%
-  mutate(freq = n / sum(n)) %>%
-  mutate(freq = ifelse(response == "Disagree", -freq, freq)) %>%
-  mutate(freq = ifelse(response == "Strongly disagree", -freq, freq)) %>%
-  filter(! response == "Neither agree nor disagree") %>%
-  ungroup() %>%
-  select(-n)
-lvls <- c("Strongly disagree", "Disagree", "Strongly agree", "Agree")
-to_facet_plot$response <- factor(to_facet_plot$response, levels = lvls)
-
-colour_lowest <- "#e74a4e"
-colour_low <- "#df7081"
-colour_high <- "#5e94d0"
-colour_highest <- "#7caadc"
-
-make_yoy_plot <- function(tbl_df, div) {
-  ggplot(
-    tbl_df %>% filter(division == div), 
-    aes(x = driver_all, y = engagement, fill = date, group = driver_all)) +
-    geom_point(shape = 21, size = 5, colour = "black") +
-    geom_line(aes(colour = is_negative), arrow = arrow(length=unit(0.30,"cm"), type = "closed"), show.legend = FALSE) +
-    scale_fill_manual(values = c("white", "darkgrey")) +
-    scale_colour_manual(values = c(colour_highest, colour_lowest), drop = FALSE) +
-    ylim(c(25, 100)) +
-    labs(
-      title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
-      subtitle = div) +
-    coord_flip() +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(),
-      axis.ticks.y = element_blank(),
-      axis.line = element_line(color = "black"),
-      legend.title = element_blank(),
-      legend.position = "top",
-      axis.title = element_blank())
-}
-
-make_heatmap <- ggplot(
-  to_yoy_plot %>% filter(date == 2018) %>%
-    mutate(engagement = round(engagement)) %>%
-    mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))), 
-  aes(x = division, y = driver_all, fill = bin)) +
-  geom_tile(color = "black") +
-  geom_text(aes(label = engagement)) +
-  scale_fill_manual(
-    #values = c("#d7191c", "#ffffbf", "#1a9641"),
-    values = c(colour_lowest, "white", colour_highest),
-    labels = c("0 - 69", "70 - 80", "81 - 100")) + 
-  labs(
-    fill = "Engagement\nScore",
-    title = "Percentage of \'Agree\' responses or higher") +
-  scale_x_discrete(position = "top", labels = function(x) str_wrap(x, width = 10)) +
-  theme(
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    axis.ticks = element_blank(),
-    panel.background = element_blank())
-
-make_detail_heatmap <- function(tbl_df, driver) {
-  ggplot(
-    tbl_df %>%
-      filter(driver_all == driver) %>%
-      mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))),
-    aes(x = division, y = question, fill = bin)) +
-    geom_tile(color = "black") +
-    geom_text(aes(label = engagement)) +
-    scale_fill_manual(
-      values = c(colour_lowest, "white", colour_highest),
-      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
-    labs(
-      fill = "Engagement\nScore",
-      title = driver,
-      subtitle = "Percentage of \'Agree\' responses or higher") +
-    scale_x_discrete(position = "top", labels = function(x) str_wrap(x, width = 10)) +
-    scale_y_discrete(labels = function(x) str_wrap(x, width = 35)) +
-    theme(
-      axis.title.x = element_blank(),
-      axis.title.y = element_blank(),
-      axis.ticks = element_blank(),
-      panel.background = element_blank())
-}
-
-make_facet_plot <- function(tbl_df, div) {
-  palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
-  
-  ggplot(tbl_df %>% filter(division == div) %>% mutate(freq = round(freq, 4)),
-         aes(x = driver_all, y = freq)) + 
-    geom_bar(width = 0.75, aes(fill = response), stat = "identity")+
-    scale_fill_manual(
-      values = palette,
-      breaks = c("Strongly disagree", "Disagree", "Agree", "Strongly agree"))  +
-    labs(
-      title = "Frequency of Response Type by Driver", 
-      subtitle = div) + 
-    facet_wrap(~ date) +
-    coord_flip() +
-    scale_y_continuous(limits = c(-0.5, 1)) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      panel.spacing = unit(1, "lines"),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      axis.line = element_line(color = "black"),
-      legend.title = element_blank(),
-      legend.position = "top",
-      axis.title = element_blank())
-}
-
-make_yoy_facet <- function(tbl_df, driver) {
-  format_label <- function(width) {
-    function(strings) {
-      str_wrap(strings, width = width)
-    }
-  }
-  
-  ggplot(tbl_df %>% filter(driver_all == driver) %>%
-           mutate(engagement = round(engagement)), 
-         aes(x = factor(date), y = engagement, 
-             group = division, label = engagement, colour = change)) + 
-    facet_grid(
-      question ~ division, 
-      switch = "y", 
-      labeller = labeller(
-        question = format_label(35),
-        division = format_label(10))) + 
-    geom_point(show.legend = FALSE) +
-    geom_text(nudge_y = 3, hjust = "center", vjust = "bottom", size = 3, show.legend = FALSE) +
-    geom_line(show.legend = FALSE) +
-    scale_colour_manual(values = c(colour_lowest, colour_highest, "darkgrey")) +
-    scale_y_continuous(expand = expand_scale(mult = c(0.4, 0.4))) +
-    labs(
-      title = driver,
-      subtitle = "Percentage of \'Agree\' responses or higher") +
-    theme_bw() +
-    theme(
-      axis.title.x = element_blank(),
-      axis.title.y = element_blank(),
-      axis.ticks = element_blank(),
-      axis.text.y = element_blank(),
-      strip.text.y = element_text(angle = 180, colour = "grey30"),
-      strip.text.x = element_text(colour = "grey30"),
-      panel.background = element_blank(),
-      panel.grid = element_blank(),
-      strip.background = element_blank())
-}
+to_summary_heatmap <- summary_heatmap_transform(by_driver, department, 2018)
+to_yoy_plot <- yoy_plot_transform(by_driver, department)
+to_facet_plot <- bar_facet_transform(by_driver, department)
+to_detailed_heatmap <- detail_heatmap_transform(by_driver, department, 2018)
 
 #'### Engagement Score Results
-#'- Included "All Divisions (excl. Expo)" for comparison to last year, not much difference so will not
-#'include in following analysis
 #+ echo=FALSE
 knitr::kable(
-  summary_table %>% spread(date, engagement),
-  col.names = c("Division", "2017", "2018"),
+  summary_table,
+  col.names = c("Department", "2018"),
   caption = "Engagement Score (% \'Agree\' Responses or Higher)",
-  align = c('l', 'r', 'r'),
+  align = c('l', 'r'),
   padding = 12)
 
 #'### Participation Results
-#'- Aware of anomaly in Tourism participation rate, unfortunately not enough information to find the cause
 #+ echo=FALSE
 knitr::kable(
-  participation_table,
-  col.names = c("Division", "2017", "2018"),
+  participation_table %>% select(-date, -count),
+  col.names = c("Department", "Responses", "Rate"),
   caption = "Participation Rate (Answered Past First Survey Page)",
   align = c('l', 'r', 'r'),
   padding = 12)
 
 #'### Engagement Score by Driver and Division
 #+ echo = FALSE, warning = FALSE, message = FALSE
-make_heatmap
+make_summary_heatmap(to_summary_heatmap, department, 2018)
 
 #+ echo=FALSE, message=FALSE, warning=FALSE, results='asis'
-for (d in unique(to_yoy_plot$division)) {
-  cat("\n###", " Year to Year Comparison - ", d, "  \n")
-  print(make_yoy_plot(to_yoy_plot, d))
+for (d in unique(to_yoy_plot$department)) {
+  cat("\n###", " Engagement by Driver - ", d, "  \n")
+  print(make_bar_plot(to_yoy_plot, department, d))
   cat("  \n")
 }
 
 #+ echo=FALSE, message=FALSE, warning=FALSE, results='asis'
-for (d in unique(to_facet_plot$division)) {
+for (d in unique(to_facet_plot$department)) {
   cat("\n###", " Response Summary -  ", d, "  \n")
-  print(make_facet_plot(to_facet_plot, d))
+  print(make_bar_facet(to_facet_plot, department, d))
   cat("  \n")
 }
 
-
 #+ echo=FALSE, message=FALSE, warning=FALSE, results='asis'
-for (d in rev(unique(to_detailed_heatmap$driver_all))) {
-  if (! d == "All Drivers") {
+for (dr in rev(unique(to_detailed_heatmap$driver_all))) {
+  if (! dr == "All Drivers") {
     cat("\n###", " Engagement by Question and Division",  "\n")
-    print(make_detail_heatmap(to_detailed_heatmap, d))
-    cat("  \n")  
-  }
-}
-
-#+ echo=FALSE, message=FALSE, warning=FALSE, results='asis'
-for (d in rev(unique(to_yoy_facet$driver_all))) {
-  if (! d == "All Drivers") {
-    cat("\n###", " Year to Year Comparison - Engagement by Question",  "\n")
-    print(make_yoy_facet(to_yoy_facet, d))
+    print(make_detail_heatmap(to_detailed_heatmap, department, dr))
     cat("  \n")  
   }
 }

@@ -8,10 +8,22 @@ colour_low <- "#df7081"
 colour_high <- "#5e94d0"
 colour_highest <- "#7caadc"
 
+venue_name_lvls = list(
+  SCC = venue_name_cc,
+  Expo = venue_name_expo
+)
+
+update_names <- function(tbl_df, recode_var, levels) {
+  recode_var <- enquo(recode_var)
+  
+  tbl_df %>%
+    mutate(!!recode_var := recode(!!recode_var, !!!levels))
+}
+
 count_employees <- function(tbl_df, group_var, date) {
   group_var <- enquo(group_var)
   
-  tbl_df %>% 
+  tbl_df %>%
     group_by(!!group_var) %>%
     count() %>%
     rename(count = n) %>%
@@ -34,17 +46,24 @@ clean_data_pt <- function(tbl_df, venue, date) {
       id = "Respondent ID") %>%
     select(1:(ncol(.) - 4))
   
-  drop_index <- if_else(venue == "Shaw Conference Centre", 4, 6)
+  drop_index <- if_else(venue == venue_name_cc, 4, 6)
   tbl_df <- tbl_df %>% 
-    drop_na(drop_index) %>% 
+    drop_na(drop_index)
+  
+  if (venue == venue_name_expo) {
+    tbl_df <- tbl_df %>%
+      select(-contains("SCC vision"), -contains("SCC brand promise"))
+  }
+  
+  tbl_df <- tbl_df %>% 
     gather(key = "question", value = "response", -id, -division, -department) %>%
-    mutate(date = date)
+    mutate(date = date) %>%
+    filter(division == venue)
   
   lvls_lower <- c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree")
   tbl_df$response <- factor(tbl_df$response, levels = lvls_lower, ordered = TRUE)
   
-  tbl_df %>% 
-    filter(division == !!venue) %>%
+  tbl_df %>%
     bind_rows(tbl_df %>% mutate(department = "All"))
 }
 
@@ -132,8 +151,18 @@ make_participation_table_by <- function(tbl_df, emp_count, ...) {
     ungroup() %>%
     left_join(emp_count) %>%
     mutate(participation = percent(n / count, 1)) %>%
-    select(-count, -n) %>%
-    spread(date, participation)
+    select(!!!group_vars, n, count, participation)
+}
+
+summary_heatmap_transform <- function(tbl_df, group_var, date) {
+  group_var <- enquo(group_var)
+  
+  tbl_df %>%
+    filter(date == date) %>%
+    calc_engagement_by(!!group_var, driver_all) %>%
+    select(!!group_var, driver_all, engagement) %>%
+    complete(!!group_var, driver_all) %>%
+    mutate(engagement = engagement * 100)
 }
 
 yoy_plot_transform <- function(tbl_df, group_var, neg_exp = "FALSE") {
@@ -150,7 +179,7 @@ yoy_plot_transform <- function(tbl_df, group_var, neg_exp = "FALSE") {
     mutate(engagement = engagement * 100)
 }
 
-detail_heatmap_transform <- function(tbl_df, date, group_var) {
+detail_heatmap_transform <- function(tbl_df, group_var, date) {
   group_var <- enquo(group_var)
   
   tbl_df %>%
@@ -182,6 +211,7 @@ yoy_facet_transform <- function(tbl_df, group_var, questions, diff_exp = "0") {
 }
 
 bar_facet_transform <- function(tbl_df, group_var) {
+  group_var <- enquo(group_var)
   
   tbl_df <- tbl_df %>%
     group_by(!!group_var, driver_all, date) %>%
@@ -196,13 +226,38 @@ bar_facet_transform <- function(tbl_df, group_var) {
     select(-n)
   
   lvls <- c("Strongly disagree", "Disagree", "Strongly agree", "Agree")
-  tbl_df$response <- factor(to_facet_plot$response, levels = lvls)
+  tbl_df$response <- factor(tbl_df$response, levels = lvls)
   
   tbl_df
 }
 
+make_bar_plot <- function(tbl_df, group_var, group) {
+  group_var <- enquo(group_var)
+  
+  ggplot(
+    tbl_df %>% filter(!!group_var == group), 
+    aes(x = driver_all, y = engagement)) +
+    geom_bar(fill = "darkgrey", stat = "identity") +
+    ylim(c(0, 100)) +
+    labs(
+      title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
+      subtitle = group) +
+    coord_flip() +
+    theme_bw() +
+    theme(
+      panel.border = element_blank(),
+      panel.grid.major.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.title = element_blank(),
+      legend.position = "top",
+      axis.title = element_blank())
+}
+
 make_yoy_plot <- function(tbl_df, group_var, group) {
   group_var <- enquo(group_var)
+  
+  y_min <- min(tbl_df$engagement) - 5
   
   fill_vals <- c("darkgrey")
   if (length(unique(tbl_df$date)) > 1) {
@@ -216,7 +271,7 @@ make_yoy_plot <- function(tbl_df, group_var, group) {
     geom_line(aes(colour = is_negative), arrow = arrow(length=unit(0.30,"cm"), type = "closed"), show.legend = FALSE) +
     scale_fill_manual(values = fill_vals) +
     scale_colour_manual(values = c(colour_highest, colour_lowest), drop = FALSE) +
-    ylim(c(25, 100)) +
+    ylim(c(y_min, 100)) +
     labs(
       title = "Engagement Score (Percentage of \'Agree\' Responses or Higher) by Driver", 
       subtitle = group) +
@@ -239,13 +294,14 @@ make_summary_heatmap <- function(tbl_df, group_var, date) {
   ggplot(
     tbl_df %>% filter(date == date) %>%
       mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))), 
+      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))), 
     aes(x = !!group_var, y = driver_all, fill = bin)) +
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
     scale_fill_manual(
       values = c(colour_lowest, "white", colour_highest),
-      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
+      labels = c("0 - 69", "70 - 80", "81 - 100"),
+      drop = FALSE) + 
     labs(
       fill = "Engagement\nScore",
       title = "Percentage of \'Agree\' responses or higher") +
@@ -264,13 +320,14 @@ make_detail_heatmap <- function(tbl_df, group_var, driver) {
     tbl_df %>%
       filter(driver_all == driver) %>%
       mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 81, 100))),
+      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))),
     aes(x = !!group_var, y = question, fill = bin)) +
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
     scale_fill_manual(
       values = c(colour_lowest, "white", colour_highest),
-      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
+      labels = c("0 - 69", "70 - 80", "81 - 100"),
+      drop = FALSE) + 
     labs(
       fill = "Engagement\nScore",
       title = driver,
@@ -290,19 +347,20 @@ make_bar_facet <- function(tbl_df, group_var, group) {
   palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
   
   ggplot(tbl_df %>% 
-           filter(group_var == group) %>% 
+           filter(!!group_var == group) %>% 
            mutate(freq = round(freq, 4)),
          aes(x = driver_all, y = freq)) + 
     geom_bar(width = 0.75, aes(fill = response), stat = "identity")+
     scale_fill_manual(
       values = palette,
-      breaks = c("Strongly disagree", "Disagree", "Agree", "Strongly agree"))  +
+      breaks = c("Strongly disagree", "Disagree", "Agree", "Strongly agree"),
+      drop = FALSE)  +
     labs(
-      title = "Frequency of Response Type by Driver", 
+      title = "Frequency of Response by Driver", 
       subtitle = group) + 
     facet_wrap(~ date) +
     coord_flip() +
-    scale_y_continuous(limits = c(-0.5, 1)) +
+    scale_y_continuous(limits = c(-1, 1)) +
     theme_bw() +
     theme(
       panel.border = element_blank(),
