@@ -1,6 +1,6 @@
 #'---
 #'title: EEDC Venue Operations Employee Engagement Survey
-#'author: 2018 Results - ECC
+#'author: 2018 Results - Edmonton Convention Centre
 #'date:
 #'output: 
 #'  beamer_presentation
