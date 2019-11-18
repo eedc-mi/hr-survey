@@ -45,48 +45,77 @@ library(rmarkdown)
 setwd(here())
 
 data_path <- file.path(
-  "K:",
+  "C:",
+  "Users",
+  "PReid",
+  "Edmonton Economic Development Corporation",
+  "Market Intelligence - Project Files",
   "Corporate",
   "Human Resources",
   "Employee Engagement Survey Results",
   "data"
 )
 
-data_new <- read_csv(file.path(data_path, "2018", "ft", "responses_2018_update.csv"))
-data_old <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv"))
-questions_new <- read_csv(file.path(data_path, "2018", "ft", "questions_2018.csv"))
-questions_old <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
-employees_new <- read_csv(file.path(data_path, "2018", "ft", "employees_2018.csv"))
-employee_count_old <- read_csv(file.path(data_path, "nov_2017", "employees_nov_2017.csv"))
+data_2019 <- read_csv(file.path(data_path, "2019", "ft", "responses_2019.csv")) %>% mutate(date = 2019)
+data_2018 <- read_csv(file.path(data_path, "2018", "ft", "responses_2018.csv")) %>% mutate(date = 2018)
+data_2017 <- read_csv(file.path(data_path, "nov_2017", "responses_nov_2017.csv")) %>% mutate(date = 2017)
+questions_2019 <- read_csv(file.path(data_path, "2019", "ft", "questions_2019.csv"))
+questions_2018 <- read_csv(file.path(data_path, "2018", "ft", "questions_2018.csv"))
+questions_2017 <- read_csv(file.path(data_path, "nov_2017", "questions_nov_2017.csv"))
+employees_2019 <- read_csv(file.path(data_path, "2019", "ft", "employees_2019.csv")) %>% mutate(date = 2019)
+employees_2018 <- read_csv(file.path(data_path, "2018", "ft", "employees_2018.csv")) %>% mutate(date = 2018)
+employee_count_2017 <- read_csv(file.path(data_path, "nov_2017", "employees_nov_2017.csv")) %>% mutate(date = 2017)
 
-update_division_names <- function(tbl_df) {
-  tbl_df %>% mutate(
-    division = case_when(
-      grepl("Corporate", division) ~ "Corporate",
-      division == "SCC" ~ "Shaw Conference Centre",
-      division == "Expo" ~ "Edmonton Expo Centre",
-      division == "Trade and Investment" ~ "Enterprise Edmonton",
-      division == "Urban Economy" ~ "Innovate Edmonton",
-      division == "Tourism" ~ "Edmonton Tourism",
-      TRUE ~ division
-    )
-  )  
+update_names <- function(tbl_df, recode_var, levels) {
+  recode_var <- enquo(recode_var)
+  
+  tbl_df %>%
+    mutate(!!recode_var := recode(!!recode_var, !!!levels))
 }
 
-count_employees <- function(tbl_df) {
+division_name_lvls <- list(
+  "Corporate (includes Corporate Services and Executive Office)" = "Corporate",
+  "Corporate (includes Corporate Services and Corporate Relations)" = "Corporate",
+  "SCC" = "Edmonton Convention Centre",
+  "Shaw Conference Centre" = "Edmonton Convention Centre",
+  "Expo" = "Edmonton Expo Centre",
+  "ECC" = "Edmonton Convention Centre",
+  "Edmonton EXPO Centre" = "Edmonton Expo Centre",
+  "Trade and Investment" = "Research and Strategy",
+  "Enterprise Edmonton" = "Research and Strategy",
+  "Urban Economy" = "Innovate Edmonton",
+  "Tourism" = "Edmonton Tourism"
+)
+
+# update_division_names <- function(tbl_df) {
+#   tbl_df %>% mutate(
+#     division = case_when(
+#       grepl("Corporate", division) ~ "Corporate",
+#       division == "SCC" ~ "Shaw Conference Centre",
+#       division == "Expo" ~ "Edmonton Expo Centre",
+#       division == "Trade and Investment" ~ "Enterprise Edmonton",
+#       division == "Urban Economy" ~ "Innovate Edmonton",
+#       division == "Tourism" ~ "Edmonton Tourism",
+#       TRUE ~ division
+#     )
+#   )  
+# }
+
+count_employees_by <- function(tbl_df, group_var) {
+  group_var <- enquo(group_var)
+  
   tbl_df %>% 
-    group_by(division) %>%
+    group_by(!!group_var, date) %>%
     count() %>%
     rename(count = n) %>%
     ungroup() %>%
-    add_row(division = "All Divisions", count = sum(.$count)) %>%
-    update_division_names()
+    add_row(!!group_var := "Overall", date = unique(.$date), count = sum(.$count))
 }
 
-employee_count_new <- count_employees(employees_new)
-employee_count_old <- update_division_names(employee_count_old) 
+# employee_count_new <- count_employees(employees_new)
+# employee_count_old <- update_division_names(employee_count_old) 
 
-clean_data <- function(tbl_df, date) {
+clean_data <- function(tbl_df) {
   tbl_df <- tbl_df %>% 
     select(
       -starts_with("Please tell us"),
@@ -95,18 +124,19 @@ clean_data <- function(tbl_df, date) {
       -starts_with("End"),
       division = starts_with("Please identify"),
       id = "Respondent ID") %>%
+    select(id, division, date, everything()) %>%
     select(1:(ncol(.) - 4))
   
-  tbl_df <- tbl_df %>% update_division_names()
+  tbl_df <- tbl_df %>% update_names(division, division_name_lvls)
   
-  division_question_index <- which(grepl("division", names(tbl_df)))
-  tbl_df <- tbl_df %>% drop_na(division_question_index + 1)
+  date_index <- which(grepl("date", names(tbl_df)))
+  tbl_df <- tbl_df %>% drop_na(date_index + 1)
   
   lvls_upper <- c("Strongly Disagree", "Disagree", "Neither Agree nor Disagree", "Agree", "Strongly Agree")
   lvls_lower <- c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree")
 
   tbl_df <- tbl_df %>% 
-    gather(key = "question", value = "response", -id, -division) %>%
+    gather(key = "question", value = "response", -id, -division, -date) %>%
     mutate(response = case_when(
       response == "Strongly Disagree" ~ "Strongly disagree",
       response == "Strongly Agree" ~ "Strongly agree",
@@ -115,23 +145,23 @@ clean_data <- function(tbl_df, date) {
     ))
   
   tbl_df$response <- factor(tbl_df$response, levels = lvls_lower, ordered = TRUE)
-
-  tbl_df %>% mutate(date =  date)
+  
+  tbl_df %>% bind_rows(tbl_df %>% mutate(division = "Overall"))
 }
 
-to_by_driver <- function(tbl_df, qs) {
+driver_transform <- function(tbl_df, questions) {
   driver_list <- unique(
     c(
-      unique(qs$driver_1[! is.na(qs$driver_1)]),
-      unique(qs$driver_2[! is.na(qs$driver_2)]), 
-      unique(qs$driver_3[! is.na(qs$driver_3)])
+      unique(questions$driver_1[! is.na(questions$driver_1)]),
+      unique(questions$driver_2[! is.na(questions$driver_2)]), 
+      unique(questions$driver_3[! is.na(questions$driver_3)])
     )
   )
   
   # Leadership removed at HR request
   driver_list <- driver_list[driver_list != "Leadership"]
   
-  tbl_df <- tbl_df %>% left_join(qs)
+  tbl_df <- tbl_df %>% left_join(questions)
   
   by_driver <- tbl_df %>%
     mutate(driver_all = "All Drivers")
@@ -183,42 +213,54 @@ to_by_driver <- function(tbl_df, qs) {
 #   )
 # )
 
-clean_data_new <- clean_data(data_new, 2018)
-clean_data_old <- clean_data(data_old, 2017)
-
-clean_data_all <- bind_rows(
-  clean_data_new,
-  clean_data_old
-)
-
-clean_data_all <- bind_rows(
-  clean_data_all, 
-  clean_data_all %>% mutate(division = "All Divisions")
-)
-  
-by_driver <- bind_rows(
-  to_by_driver(clean_data_new, questions_new),
-  to_by_driver(clean_data_old, questions_old)
-)
-
-by_driver <- bind_rows(
-  by_driver,
-  by_driver %>% mutate(division = "All Divisions")
-)
+# clean_data_new <- clean_data(data_new, 2018)
+# clean_data_old <- clean_data(data_old, 2017)
+# 
+# clean_data_all <- bind_rows(
+#   clean_data_new,
+#   clean_data_old
+# )
+# 
+# clean_data_all <- bind_rows(
+#   clean_data_all, 
+#   clean_data_all %>% mutate(division = "All Divisions")
+# )
+#   
+# by_driver <- bind_rows(
+#   to_by_driver(clean_data_new, questions_new),
+#   to_by_driver(clean_data_old, questions_old)
+# )
+# 
+# by_driver <- bind_rows(
+#   by_driver,
+#   by_driver %>% mutate(division = "All Divisions")
+# )
 
 # by_driver$date <- factor(
 #   by_driver$date, c(2017, 2018), ordered = TRUE
 # )
 
-employee_count_all <- bind_rows(
-  employee_count_new %>% mutate(date = 2018),
-  employee_count_old %>% mutate(date = 2017)
-)
+# employee_count_all <- bind_rows(
+#   employee_count_new %>% mutate(date = 2018),
+#   employee_count_old %>% mutate(date = 2017)
+# )
+
+make_response_dataset <- function(responses, questions) {
+  ls <- map(responses, clean_data)
+  bind_rows(map2(ls, questions, driver_transform)) 
+}
+
+make_employee_dataset <- function(employees, extra = list()) {
+  ls <- map(employees, count_employees_by, group_var = division)
+  tbl_df <- bind_rows(ls, extra) %>%
+    update_names(division, division_name_lvls)
+}
 
 calc_engagement_by <- function(tbl_df, ...) {
   group_vars <- quos(...)
   
   tbl_df %>%
+    filter(include_in_engagement_score) %>%
     group_by(!!!group_vars) %>%
     count(response) %>%
     complete(response, fill = list(n = 0)) %>%
@@ -230,24 +272,30 @@ calc_engagement_by <- function(tbl_df, ...) {
     mutate(engagement = `Strongly agree` + `Agree`) 
 }
 
-summary_table <- clean_data_all %>%
+response_data <- make_response_dataset(
+  list(data_2017, data_2018, data_2019),
+  list(questions_2017, questions_2018, questions_2019)
+)
+
+employee_data <- make_employee_dataset(
+  list(employees_2018, employees_2019), 
+  extra = employee_count_2017
+)
+
+summary_table <- response_data %>%
+  filter(driver_all == "All Drivers") %>%
   calc_engagement_by(division, date) %>%
   select(division, date, engagement) %>%
-  mutate(engagement = percent(engagement, 1)) %>%
-  bind_rows(
-    clean_data_all %>% 
-      filter(division != "Edmonton Expo Centre", division != "All Divisions") %>%
-      mutate(division = "All Divisions (excl. Expo)") %>%
-      calc_engagement_by(division, date) %>%
-      select(division, date, engagement) %>%
-      mutate(engagement = percent(engagement, 1)))
+  mutate(engagement = percent(engagement, 1))
 
-participation_table <- clean_data_all %>%
+participation_table <- response_data %>%
+  filter(driver_all == "All Drivers") %>%
+  select(id, division, date, question, response) %>%
   spread(key = question, value = response) %>%
   group_by(division, date) %>%
   count() %>%
   ungroup() %>%
-  left_join(employee_count_all, by = c("division", "date")) %>%
+  left_join(employee_data, by = c("division", "date")) %>%
   mutate(participation = percent(n / count, 1)) %>%
   select(-count, -n) %>%
   spread(date, participation)
