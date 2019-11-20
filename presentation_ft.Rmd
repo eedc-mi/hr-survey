@@ -1,0 +1,138 @@
+---
+title: "EEDC Employee Engagement Survey"
+author: "2019 Results"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("plot_fns_ft.R")
+```
+
+## 2018 Employee Engagement Survey
+- 34 "quantitative" questions, categorized into 9 engagement drivers and two focus areas
+- Some questions associated with more than one driver
+- 11 engagement drivers:
+    1. Affinity: I like the place and people
+    2. Communication: I get information when I need it and  am able to share my thoughts, opinions and ideas
+    3. Compensation: Total rewards including pay, benefits, retirement plan, perks
+    4. Development: Coaching, training and other developmental opportunities aimed at improving personal and professional career growth opportunities
+    5. Empowerment: I feel supported to make decisions
+    6. Performance: Execution and accomplishment of work
+        
+## 2018 Employee Engagement Survey
+- 11 engagement drivers (cont.):
+    7. Recognition: My efforts and accomplishments are acknowledged
+    8. Relations: Relationship between the employer and employee, based on foundation of trust and respect
+    9. Teamwork: Cooperative and coordinated efforts of a group working together to achieve common objectives
+    10. Change Leadership: Influence and enthuse others through personal advocacy, vision and drive, and to access resources to build a solid platform for?change
+    11. Direct Manager Support: Empowering others to act, foster collaboration, and build trust
+    
+## Analysis
+- Engagement Score:
+    - Percentage of responses that are **Agree** or higher
+    - All questions weighted equally
+- Participation Rate:
+    - Percentage of respondents who answered at least one survey question
+    - Employee counts are current as of the survey launch date
+    - This year we were much more rigourous with the survey distribution list. Take 2017 participation rates with a grain of salt.
+
+## Engagement Score Results
+
+```{r summary, echo = FALSE}
+knitr::kable(
+  summary_table,
+  col.names = c("Division", "2017", "2018", "2019"),
+  caption = "Engagement Score (% \'Agree\' Responses or Higher)",
+  align = c('l', 'r', 'r', 'r'),
+  padding = 12)
+```
+
+## Participation Results
+
+```{r participation, echo = FALSE}
+knitr::kable(
+  participation_table,
+  col.names = c("Division", "2017", "2018", "2019"),
+  caption = "Participation Rate (Answered Past First Survey Page)",
+  align = c('l', 'r', 'r', 'r'),
+  padding = 12)
+```
+
+## Pulse Check Questions
+- These two questions are not included in any drivers or the overall engagement score
+
+```{r pulse_bar, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 5.5}
+make_pulse_bar_plot(to_pulse_bar_plot)
+```
+
+## Pulse Check Questions
+- These two questions are not included in any drivers or the overall engagement score
+
+```{r pulse_facet, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 5.5}
+make_pulse_facet_plot(to_pulse_facet_plot)
+```
+
+## Engagement Score by Driver and Division
+```{r heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+make_heatmap(to_yoy_plot, division, driver_all)
+```
+
+## Engagement Score by Category and Division
+```{r category_heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+make_heatmap(to_category_heatmap, division, category)
+```
+
+<!-- Year over Year Plots -->
+
+```{r yoy_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in unique(to_yoy_plot$division)) {
+  cat("\n##", " Year to Year Comparison - ", d, "  \n")
+  print(make_yoy_plot(to_yoy_plot, d))
+  cat("  \n")
+}
+```
+
+<!-- Facet Plots -->
+
+```{r facet_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in unique(to_facet_plot$division)) {
+  cat("\n##", " Response Summary -  ", d, "  \n")
+  print(make_facet_plot(to_facet_plot, d, driver_all, "Driver"))
+  cat("  \n")
+  cat("\n##", " Response Summary -  ", d, "  \n")
+  print(make_facet_plot(to_category_facet_plot, d, category, "Category"))
+  cat("  \n")
+}
+```
+
+<!-- Detailed Heatmaps -->
+
+```{r detail_heatmaps, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in rev(unique(to_detailed_heatmap$driver_all))) {
+  if (! d == "All Drivers") {
+    cat("\n##", " Engagement by Question and Division",  "\n")
+    print(make_detail_heatmap(to_detailed_heatmap, d))
+    cat("  \n")  
+  }
+}
+```
+
+## Year to Year Comparison - Engagement by Category
+
+```{r category_yoy_facet, echo=FALSE, message=FALSE, warning=FALSE}
+make_category_yoy_facet(to_category_yoy_facet)
+```
+
+<!-- Detailed Year over Year Plots -->
+
+```{r yoy_facets, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in rev(unique(to_yoy_facet$driver_all))) {
+  if (! d == "All Drivers") {
+    cat("\n##", " Year to Year Comparison - Engagement by Question",  "\n")
+    print(make_yoy_facet(to_yoy_facet, d))
+    cat("  \n")  
+  }
+}
+```
+
