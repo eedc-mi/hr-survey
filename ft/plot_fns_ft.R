@@ -1,7 +1,5 @@
 library(stringr)
 
-source("transform_data_ft.R")
-
 colour_lowest <- "#e74a4e"
 colour_low <- "#df7081"
 colour_high <- "#5e94d0"
@@ -13,14 +11,16 @@ format_label <- function(width) {
   }
 }
 
-make_yoy_plot <- function(tbl_df, div) {
+make_yoy_plot <- function(tbl_df, transform_fn, div) {
+  tbl_df <- transform_fn(tbl_df)
+  
   ggplot(
     tbl_df %>% filter(division == div), 
     aes(x = driver_all, y = engagement, fill = date, group = driver_all)) +
     geom_point(shape = 21, size = 5, colour = "black") +
     geom_line(
       aes(colour = is_negative), 
-      arrow = arrow(length=unit(0.30,"cm"), type = "closed"), show.legend = FALSE) +
+      arrow = arrow(length=unit(0.30, "cm"), type = "closed"), show.legend = FALSE) +
     scale_fill_manual(values = c("white", "darkgrey")) +
     scale_colour_manual(values = c(colour_highest, colour_lowest), drop = FALSE) +
     ylim(c(25, 100)) +
@@ -40,7 +40,9 @@ make_yoy_plot <- function(tbl_df, div) {
       axis.title = element_blank())
 }
 
-make_heatmap <- function(tbl_df, x, y) {
+make_heatmap <- function(tbl_df, transform_fn, x, y) {
+  tbl_df <- transform_fn(tbl_df)
+  
   x <- enquo(x)
   y <- enquo(y)
   
@@ -65,7 +67,9 @@ make_heatmap <- function(tbl_df, x, y) {
       panel.background = element_blank())
 }
 
-make_detail_heatmap <- function(tbl_df, driver) {
+make_detail_heatmap <- function(tbl_df, transform_fn, driver) {
+  tbl_df <- transform_fn(tbl_df)
+  
   ggplot(
     tbl_df %>%
       filter(driver_all == driver) %>%
@@ -90,7 +94,9 @@ make_detail_heatmap <- function(tbl_df, driver) {
       panel.background = element_blank())
 }
 
-make_facet_plot <- function(tbl_df, div, x, by) {
+make_facet_plot <- function(tbl_df, transform_fn, div, x, by) {
+  tbl_df <- transform_fn(tbl_df)
+  
   x <- enquo(x)
   palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
   
@@ -120,7 +126,9 @@ make_facet_plot <- function(tbl_df, div, x, by) {
       axis.title = element_blank())
 }
 
-make_yoy_facet <- function(tbl_df, driver) {
+make_yoy_facet <- function(tbl_df, transform_fn, driver) {
+  tbl_df <- transform_fn(tbl_df)
+  
   ggplot(tbl_df %>% filter(driver_all == driver) %>%
            mutate(engagement = round(engagement)), 
          aes(x = factor(date), y = engagement, 
@@ -152,7 +160,9 @@ make_yoy_facet <- function(tbl_df, driver) {
       strip.background = element_blank())
 }
 
-make_category_yoy_facet <- function(tbl_df) {
+make_category_yoy_facet <- function(tbl_df, transform_fn) {
+  tbl_df <- transform_fn(tbl_df)
+  
   ggplot(
     tbl_df %>% mutate(engagement = round(engagement)), 
     aes(x = factor(date), 
@@ -184,7 +194,9 @@ make_category_yoy_facet <- function(tbl_df) {
       strip.background = element_blank())
 }
 
-make_pulse_bar_plot <- function(tbl_df) {
+make_pulse_bar_plot <- function(tbl_df, transform_fn) {
+  tbl_df <- transform_fn(tbl_df)
+  
   ggplot(
     tbl_df %>% mutate(division = fct_rev(division)),
     aes(x = division, y = engagement, label = round(engagement))) +
@@ -214,7 +226,9 @@ make_pulse_bar_plot <- function(tbl_df) {
       axis.title = element_blank())
 }
 
-make_pulse_facet_plot <- function(tbl_df) {
+make_pulse_facet_plot <- function(tbl_df, transform_fn) {
+  tbl_df <- transform_fn(tbl_df)
+  
   palette <- c(colour_lowest, colour_low, colour_high, colour_highest)
   
   ggplot(

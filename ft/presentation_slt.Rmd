@@ -1,0 +1,17 @@
+---
+title: "EEDC Employee Engagement Survey"
+author: "2019 Results"
+output: 
+  beamer_presentation:
+    toc: true
+params:
+  response_data: NULL
+  employee_data: NULL
+---
+
+
+```{r child = "presentation_divisional.Rmd"}
+```
+
+```{r child = "presentation_qualitative.Rmd"}
+```
