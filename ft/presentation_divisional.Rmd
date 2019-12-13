@@ -4,20 +4,24 @@ author: "2019 Results"
 output: 
   beamer_presentation:
     toc: true
+params:
+  response_data: NULL
+  employee_data: NULL
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 source("plot_fns_ft.R")
+source("transform_fns_ft.R")
 ```
 
 # Quantitative Results
 
 ## Quantitative Questions
-- 34 "quantitative" questions, categorized into 11 engagement drivers
+- 34 "quantitative" questions, categorized into 9 engagement drivers and two focus areas
   - Some questions associated with more than one driver
 - New in 2019: two Pulse Check questions to measure sentiment as EEDC changes its business model
-- 11 engagement drivers:
+- 9 engagement drivers:
   1. Affinity: I like the place and people
   2. Communication: I get information when I need it and  am able to share my thoughts, opinions and ideas
   3. Compensation: Total rewards including pay, benefits, retirement plan, perks
@@ -26,12 +30,13 @@ source("plot_fns_ft.R")
   6. Performance: Execution and accomplishment of work
         
 ## Quantitative Questions
-- 11 engagement drivers (cont.):
+- 9 engagement drivers (cont.):
   7. Recognition: My efforts and accomplishments are acknowledged
   8. Relations: Relationship between the employer and employee, based on foundation of trust and respect
   9. Teamwork: Cooperative and coordinated efforts of a group working together to achieve common objectives
-  10. Change Leadership: Influence and enthuse others through personal advocacy, vision and drive, and to access resources to build a solid platform for?change
-  11. Direct Manager Support: Empowering others to act, foster collaboration, and build trust
+- Two focus areas:
+  1. Change Leadership: Influence and enthuse others through personal advocacy, vision and drive, and to access resources to build a solid platform for change
+  2. Direct Manager Support: Empowering others to act, foster collaboration, and build trust
     
 ## Analysis
 - Engagement Score:
@@ -46,7 +51,7 @@ source("plot_fns_ft.R")
 
 ```{r summary, echo = FALSE}
 knitr::kable(
-  summary_table,
+  transform_summary_table(params$response_data),
   col.names = c("Division", "2017", "2018", "2019"),
   caption = "Engagement Score (% \'Agree\' Responses or Higher)",
   align = c('l', 'r', 'r', 'r'),
@@ -57,7 +62,7 @@ knitr::kable(
 
 ```{r participation, echo = FALSE}
 knitr::kable(
-  participation_table,
+  transform_participation_table(params$response_data, params$employee_data),
   col.names = c("Division", "2017", "2018", "2019"),
   caption = "Participation Rate (Answered Past First Survey Page)",
   align = c('l', 'r', 'r', 'r'),
@@ -68,32 +73,32 @@ knitr::kable(
 - These two questions are not included in any drivers or the overall engagement score
 
 ```{r pulse_bar, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 5.5}
-make_pulse_bar_plot(to_pulse_bar_plot)
+make_pulse_bar_plot(params$response_data, transform_pulse_bar_plot)
 ```
 
 ## Pulse Check Questions
 - These two questions are not included in any drivers or the overall engagement score
 
 ```{r pulse_facet, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 5.5}
-make_pulse_facet_plot(to_pulse_facet_plot)
+make_pulse_facet_plot(params$response_data, transform_pulse_facet_plot)
 ```
 
 ## Engagement Score by Driver and Division
 ```{r heatmap, echo=FALSE, message=FALSE, warning=FALSE}
-make_heatmap(to_yoy_plot, division, driver_all)
+make_heatmap(params$response_data, transform_yoy_plot, division, driver_all)
 ```
 
 ## Engagement Score by Category and Division
 ```{r category_heatmap, echo=FALSE, message=FALSE, warning=FALSE}
-make_heatmap(to_category_heatmap, division, category)
+make_heatmap(params$response_data, transform_category_heatmap, division, category)
 ```
 
 <!-- Year over Year Plots -->
 
 ```{r yoy_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
-for (d in unique(to_yoy_plot$division)) {
+for (d in unique(params$response_data$division)) {
   cat("\n##", " Year to Year Comparison - ", d, "  \n")
-  print(make_yoy_plot(to_yoy_plot, d))
+  print(make_yoy_plot(params$response_data, transform_yoy_plot, d))
   cat("  \n")
 }
 ```
@@ -101,12 +106,12 @@ for (d in unique(to_yoy_plot$division)) {
 <!-- Facet Plots -->
 
 ```{r facet_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
-for (d in unique(to_facet_plot$division)) {
+for (d in unique(params$response_data$division)) {
   cat("\n##", " Response Summary -  ", d, "  \n")
-  print(make_facet_plot(to_facet_plot, d, driver_all, "Driver"))
+  print(make_facet_plot(params$response_data, transform_facet_plot, d, driver_all, "Driver"))
   cat("  \n")
   cat("\n##", " Response Summary -  ", d, "  \n")
-  print(make_facet_plot(to_category_facet_plot, d, category, "Category"))
+  print(make_facet_plot(params$response_data, transform_category_facet_plot, d, category, "Category"))
   cat("  \n")
 }
 ```
@@ -114,10 +119,10 @@ for (d in unique(to_facet_plot$division)) {
 <!-- Detailed Heatmaps -->
 
 ```{r detail_heatmaps, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
-for (d in rev(unique(to_detailed_heatmap$driver_all))) {
+for (d in rev(unique(params$response_data$driver_all))) {
   if (! d == "All Drivers") {
     cat("\n##", " Engagement by Question and Division",  "\n")
-    print(make_detail_heatmap(to_detailed_heatmap, d))
+    print(make_detail_heatmap(params$response_data, transform_detailed_heatmap, d))
     cat("  \n")  
   }
 }
@@ -126,59 +131,17 @@ for (d in rev(unique(to_detailed_heatmap$driver_all))) {
 ## Year to Year Comparison - Engagement by Category
 
 ```{r category_yoy_facet, echo=FALSE, message=FALSE, warning=FALSE}
-make_category_yoy_facet(to_category_yoy_facet)
+make_category_yoy_facet(params$response_data, transform_category_yoy_facet)
 ```
 
 <!-- Detailed Year over Year Plots -->
 
 ```{r yoy_facets, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
-for (d in rev(unique(to_yoy_facet$driver_all))) {
+for (d in rev(unique(params$response_data$driver_all))) {
   if (! d == "All Drivers") {
     cat("\n##", " Year to Year Comparison - Engagement by Question",  "\n")
-    print(make_yoy_facet(to_yoy_facet, d))
+    print(make_yoy_facet(params$response_data, transform_yoy_facet, d))
     cat("  \n")  
   }
 }
 ```
-
-# Qualitative Results
-
-## Qualitative Results
-- 4 long-answer questions
-  - What sets EEDC apart?
-  - What does EEDC do well?
-  - What does EEDC do that's tricky?
-  - What should EEDC do differently?
-- Lower participation than quantitative questions
-  - Out of 178 responses, 103 answered at least one long-answer question
-
-## Positive Themes
-- Great culture and values
-  - "I love the type of work environment that EEDC have and the Core Values that it stands with."
-- Great people
-  - "The employees. I have never worked for an organization where I bond with so many colleagues."
-- Good internal communication and collaboration between divisions
-  - "EEDC does an excellent job facilitating cross organizational collaboration and communication between divisions. This is achieved through meetings such as The Way Forward and the organization of numerous events."
-
-## Positive Themes
-  
-- Strong purpose
-  - "Our team has the ability to move the needle forward and share in the responsibility and excitement of elevating Edmonton's brand and reputation."
-- Does great work
-  - "EEDC makes an impact in the city. We have seen some really big successes happen that were either directly influenced by this organization or were at least heavily involved with this organization and its initiatives."
-    
-## Improvement Themes
-- Policies/processes/systems need improvement
-  - "Poor communication & slow payment process of vendor invoices this year, but still feel confident that this will improve."
-- Challenging relationship with Shareholder or other public stakeholders
-  - "Navigating the constant criticism in the media and at council is difficult."
-- Too much change in structure and focus
-  - "I've worked in many organizations [...] and EEDC definitely takes the cake on the amount of significant and impactful change that our employees have to try and process."
-  
-## Improvement Themes
-- Too many meetings and/or meetings not valuable
-  - "Internally, The Way Forward and People Leader meetings do not bring strong value. I would prefer having the same info curated and communicated electronically where people have the ability to contribute."
-- Mandate/goals not clear
-  - "I think EEDC needs to figure out where they're going and remain consistent with decisions."
-- Pay/benefits not competitive
-  - "Provide compensation packages that are more competitive and reflect increases in workload, responsibility and accountability."
