@@ -72,8 +72,9 @@ clean_data <- function(tbl_df) {
   
   tbl_df <- tbl_df %>% update_names(division, division_name_lvls)
   
-  date_index <- which(grepl("date", names(tbl_df)))
-  tbl_df <- tbl_df %>% drop_na(date_index + 1)
+  questions_start_index <- which(grepl("date", names(tbl_df))) + 1
+  tbl_df <- tbl_df %>% 
+    filter_at(questions_start_index:ncol(.), any_vars(!is.na(.)))
   
   lvls_upper <- c("Strongly Disagree", "Disagree", "Neither Agree nor Disagree", "Agree", "Strongly Agree")
   lvls_lower <- c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree")
@@ -150,25 +151,6 @@ make_employee_dataset <- function(employees, extra = list()) {
   ls <- map(employees, count_employees_by, group_var = division)
   tbl_df <- bind_rows(ls, extra) %>%
     update_names(division, division_name_lvls)
-}
-
-calc_engagement_by <- function(tbl_df, ..., exclude = TRUE) {
-  group_vars <- quos(...)
-  
-  if (exclude) {
-    tbl_df <- filter(tbl_df, include_in_engagement_score)
-  }
-  
-  tbl_df %>%
-    group_by(!!!group_vars) %>%
-    count(response) %>%
-    complete(response, fill = list(n = 0)) %>%
-    filter(! is.na(response)) %>%
-    mutate(freq = n / sum(n)) %>%
-    ungroup() %>%
-    select(-n) %>%
-    spread(key = response, value = freq) %>%
-    mutate(engagement = `Strongly agree` + `Agree`) 
 }
 
 response_data <- make_response_dataset(

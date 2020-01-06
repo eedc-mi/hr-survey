@@ -25,3 +25,27 @@ for (d in unique(response_data$division)) {
     )
   }
 }
+
+source("pt/load_data_pt.R")
+
+render(
+  "pt/presentation_pt.Rmd",
+  output_file = "PT Survey Analysis - ECC.pdf",
+  output_dir = "presentations",
+  params = list(
+    response_data = filter(response_data, division == "Edmonton Convention Centre"),
+    employee_data = filter(employee_data, division == "Edmonton Convention Centre"),
+    subtitle = "Edmonton Convention Centre"
+  )
+)
+
+render(
+  "pt/presentation_pt.Rmd",
+  output_file = "PT Survey Analysis - Expo.pdf",
+  output_dir = "presentations",
+  params = list(
+    response_data = filter(response_data, division == "Edmonton Expo Centre"),
+    employee_data = filter(employee_data, division == "Edmonton Expo Centre"),
+    subtitle = "Edmonton Expo Centre"
+  )
+)

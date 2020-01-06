@@ -1,0 +1,117 @@
+---
+title: "EEDC Venue Operations Employee Survey 2019"
+output: 
+  beamer_presentation:
+    toc: true
+params:
+  response_data: NULL
+  employee_data: NULL
+  subtitle: NULL
+author: "`r params$subtitle`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("plot_fns_pt.R")
+source("transform_fns_pt.R")
+```
+
+## Quantitative Questions
+- 21 "quantitative" questions, categorized into 10 engagement drivers
+  - Some questions associated with more than one driver
+- New in 2019: "Safety" engagement driver
+- 10 engagement drivers:
+  1. Affinity: I like the place and people
+  2. Communication: I get information when I need it and  am able to share my thoughts, opinions and ideas
+  3. Compensation: Total rewards including pay, benefits, retirement plan, perks
+  4. Development: Coaching, training and other developmental opportunities aimed at improving personal and professional career growth opportunities
+  5. Empowerment: I feel supported to make decisions
+  6. Performance: Execution and accomplishment of work
+        
+## Quantitative Questions
+- 10 engagement drivers (cont.):
+  7. Recognition: My efforts and accomplishments are acknowledged
+  8. Relations: Relationship between the employer and employee, based on foundation of trust and respect
+  9. Teamwork: Cooperative and coordinated efforts of a group working together to achieve common objectives
+  10. Safety: Commitment to provide, promote and maintain a healthy and safe work environment (includes physical, psychological and social well-being) 
+    
+## Analysis
+- Engagement Score:
+  - Percentage of responses that are **Agree** or higher
+  - All questions weighted equally
+- Participation Rate:
+  - Percentage of respondents who answered at least one survey question
+  - Employee counts are current as of the survey launch date
+
+## Engagement Score Results
+
+```{r summary, echo = FALSE}
+knitr::kable(
+  transform_summary_table(params$response_data),
+  col.names = c("Department", "2018", "2019"),
+  caption = "Engagement Score (% \'Agree\' Responses or Higher)",
+  align = c('l', 'r', 'r'),
+  padding = 12)
+```
+
+## Participation Results
+
+```{r participation, echo = FALSE}
+knitr::kable(
+  transform_participation_table(params$response_data, params$employee_data),
+  col.names = c("Department", "2018", "2019"),
+  caption = "Participation Rate (Answered Past First Survey Page)",
+  align = c('l', 'r', 'r'),
+  padding = 12)
+```
+
+## Engagement Score by Driver and Department
+```{r heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+make_heatmap(params$response_data, transform_yoy_plot, department, driver_all)
+```
+
+## Engagement Score by Category and Department
+```{r category_heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+make_heatmap(params$response_data, transform_category_heatmap, department, category)
+```
+
+<!-- Year over Year Plots -->
+
+```{r yoy_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in unique(params$response_data$department)) {
+  cat("\n##", " Year to Year Comparison - ", d, "  \n")
+  print(make_yoy_plot(params$response_data, transform_yoy_plot, d))
+  cat("  \n")
+}
+```
+
+<!-- Facet Plots -->
+
+```{r facet_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in unique(params$response_data$department)) {
+  cat("\n##", " Response Summary -  ", d, "  \n")
+  print(make_facet_plot(params$response_data, transform_facet_plot, d, driver_all, "Driver"))
+  cat("  \n")
+  cat("\n##", " Response Summary -  ", d, "  \n")
+  print(make_facet_plot(params$response_data, transform_category_facet_plot, d, category, "Category"))
+  cat("  \n")
+}
+```
+
+<!-- Detailed Heatmaps -->
+
+```{r detail_heatmaps, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+for (d in rev(unique(params$response_data$driver_all))) {
+  if (! d == "All Drivers") {
+    cat("\n##", " Engagement by Question and Department",  "\n")
+    print(make_detail_heatmap(params$response_data, transform_detailed_heatmap, d))
+    cat("  \n")  
+  }
+}
+```
+
+## Year to Year Comparison - Engagement by Category
+
+```{r category_yoy_facet, echo=FALSE, message=FALSE, warning=FALSE}
+make_category_yoy_facet(params$response_data, transform_category_yoy_facet)
+```
