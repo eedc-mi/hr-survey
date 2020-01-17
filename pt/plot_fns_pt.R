@@ -74,7 +74,7 @@ make_detail_heatmap <- function(tbl_df, transform_fn, driver) {
     tbl_df %>%
       filter(driver_all == driver) %>%
       mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))),
+      mutate(bin = cut(engagement, breaks = c(-Inf, 69, 80, 100))),
     aes(x = department, y = question, fill = bin)) +
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
