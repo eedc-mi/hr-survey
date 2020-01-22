@@ -6,6 +6,14 @@ colour_low <- "#df7081"
 colour_high <- "#5e94d0"
 colour_highest <- "#7caadc"
 
+heatmap_lvls <- c(
+  "0 - 69" = "(-Inf,69]", 
+  "70 - 80" = "(69,80]", 
+  "81 - 100" = "(80,100]")
+
+heatmap_colours = c(colour_lowest, "white", colour_highest)
+names(heatmap_colours) = c("0 - 69", "70 - 80", "81 - 100")
+
 format_label <- function(width) {
   function(strings) {
     str_wrap(strings, width = width)
@@ -50,13 +58,12 @@ make_heatmap <- function(tbl_df, transform_fn, x, y) {
   ggplot(
     tbl_df %>% filter(date == 2019) %>%
       mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))), 
+      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))) %>%
+      mutate(bin = fct_recode(bin, !!!heatmap_lvls)),  
     aes(x = !!x, y = !!y, fill = bin)) +
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
-    scale_fill_manual(
-      values = c(colour_lowest, "white", colour_highest),
-      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
+    scale_fill_manual(values = heatmap_colours) + 
     labs(
       fill = "Engagement\nScore",
       title = "Percentage of \'Agree\' responses or higher") +
@@ -75,13 +82,12 @@ make_detail_heatmap <- function(tbl_df, transform_fn, driver) {
     tbl_df %>%
       filter(driver_all == driver) %>%
       mutate(engagement = round(engagement)) %>%
-      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))),
+      mutate(bin = cut(engagement, breaks = c(0, 69, 80, 100))) %>%
+      mutate(bin = fct_recode(bin, !!!heatmap_lvls)), 
     aes(x = division, y = question, fill = bin)) +
     geom_tile(color = "black") +
     geom_text(aes(label = engagement)) +
-    scale_fill_manual(
-      values = c(colour_lowest, "white", colour_highest),
-      labels = c("0 - 69", "70 - 80", "81 - 100")) + 
+    scale_fill_manual(values = heatmap_colours) + 
     labs(
       fill = "Engagement\nScore",
       title = driver,
