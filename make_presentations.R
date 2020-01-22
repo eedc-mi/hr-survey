@@ -30,7 +30,7 @@ source("pt/load_data_pt.R")
 
 render(
   "pt/presentation_pt.Rmd",
-  output_file = "PT Survey Analysis - ECC.pdf",
+  output_file = "Venue Survey Analysis - ECC.pdf",
   output_dir = "presentations",
   params = list(
     response_data = filter(response_data, division == "Edmonton Convention Centre"),
@@ -41,7 +41,7 @@ render(
 
 render(
   "pt/presentation_pt.Rmd",
-  output_file = "PT Survey Analysis - Expo.pdf",
+  output_file = "Venue Survey Analysis - Expo.pdf",
   output_dir = "presentations",
   params = list(
     response_data = filter(response_data, division == "Edmonton Expo Centre"),
